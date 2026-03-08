@@ -21,7 +21,6 @@ type AddDonorRequest struct {
 type EditDonorRequest struct {
 	Name       string `json:"name"`
 	PNo        string `json:"p_no"`
-	Email      string `json:"email"`
 	BGr        string `json:"b_gr"`
 	LastDonate string `json:"last_donate"`
 }
@@ -97,9 +96,9 @@ func GetAllDonors(c *gin.Context) {
 	})
 }
 
-// ─── VIEW SINGLE DONOR ────────────────────────────────────────────────────────
+// ─── VIEW SINGLE DONOR BY EMAIL ───────────────────────────────────────────────
 func GetDonor(c *gin.Context) {
-	id := c.Param("id")
+	email := c.Param("email")
 	ctx := context.Background()
 
 	var donor struct {
@@ -112,7 +111,7 @@ func GetDonor(c *gin.Context) {
 	}
 
 	err := db.Pool.QueryRow(ctx,
-		`SELECT id, name, p_no, email, b_gr, last_donate FROM donor WHERE id = $1`, id,
+		`SELECT id, name, p_no, email, b_gr, last_donate FROM donor WHERE email = $1`, email,
 	).Scan(&donor.ID, &donor.Name, &donor.PNo, &donor.Email, &donor.BGr, &donor.LastDonate)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Donor not found"})
@@ -122,9 +121,10 @@ func GetDonor(c *gin.Context) {
 	c.JSON(http.StatusOK, donor)
 }
 
-// ─── EDIT DONOR ───────────────────────────────────────────────────────────────
+// ─── EDIT DONOR BY EMAIL ──────────────────────────────────────────────────────
+// Email identifies the donor — you cannot change the email itself
 func EditDonor(c *gin.Context) {
-	id := c.Param("id")
+	email := c.Param("email")
 	var req EditDonorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
@@ -136,11 +136,10 @@ func EditDonor(c *gin.Context) {
 		`UPDATE donor SET
 			name        = COALESCE(NULLIF($1, ''), name),
 			p_no        = COALESCE(NULLIF($2, ''), p_no),
-			email       = COALESCE(NULLIF($3, ''), email),
-			b_gr        = COALESCE(NULLIF($4, ''), b_gr),
-			last_donate = CASE WHEN $5 = '' THEN last_donate ELSE $5::date END
-		 WHERE id = $6`,
-		req.Name, req.PNo, req.Email, req.BGr, req.LastDonate, id,
+			b_gr        = COALESCE(NULLIF($3, ''), b_gr),
+			last_donate = CASE WHEN $4 = '' THEN last_donate ELSE $4::date END
+		 WHERE email = $5`,
+		req.Name, req.PNo, req.BGr, req.LastDonate, email,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update donor: " + err.Error()})
@@ -154,13 +153,13 @@ func EditDonor(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Donor updated successfully"})
 }
 
-// ─── DELETE DONOR ─────────────────────────────────────────────────────────────
+// ─── DELETE DONOR BY EMAIL ────────────────────────────────────────────────────
 func DeleteDonor(c *gin.Context) {
-	id := c.Param("id")
+	email := c.Param("email")
 	ctx := context.Background()
 
 	result, err := db.Pool.Exec(ctx,
-		`DELETE FROM donor WHERE id = $1`, id,
+		`DELETE FROM donor WHERE email = $1`, email,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete donor: " + err.Error()})
