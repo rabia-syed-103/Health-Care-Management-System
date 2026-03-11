@@ -10,8 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ─── REQUEST STRUCTS ──────────────────────────────────────────────────────────
-
 type CreateBloodRequestRequest struct {
 	DoctorID       int `json:"doctor_id"       binding:"required"`
 	PatientID      int `json:"patient_id"      binding:"required"`
@@ -21,20 +19,7 @@ type CreateBloodRequestRequest struct {
 type FulfillBloodRequestRequest struct {
 	RequestID int `json:"request_id" binding:"required"`
 	ManagerID int `json:"manager_id" binding:"required"`
-	// No blood_id, no quantity — system reads everything from the request
-	// and auto-selects matching compatible blood inventory
 }
-
-// ─── TRANSACTION 4A — DOCTOR CREATES BLOOD REQUEST ───────────────────────────
-// Doctor requests blood for a patient. Records it in blood_request table.
-//
-// Flow:
-//  1. Verify doctor exists
-//  2. Verify patient exists + fetch blood group
-//  3. BEGIN transaction
-//  4. Check patient has no existing pending blood request
-//  5. INSERT into blood_request (status = 'pending')
-//  6. COMMIT
 
 func CreateBloodRequest(c *gin.Context) {
 	var req CreateBloodRequestRequest
@@ -45,7 +30,6 @@ func CreateBloodRequest(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// ── STEP 1: Verify doctor exists ─────────────────────────────────────────
 	var doctorName string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM doctor WHERE id = $1`, req.DoctorID,
@@ -54,7 +38,6 @@ func CreateBloodRequest(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 2: Verify patient exists + fetch blood group ────────────────────
 	var patientName, patientBloodGroup string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name, b_gr FROM patient WHERE id = $1`, req.PatientID,
@@ -63,7 +46,6 @@ func CreateBloodRequest(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 3: BEGIN transaction ─────────────────────────────────────────────
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin transaction"})
@@ -75,7 +57,6 @@ func CreateBloodRequest(c *gin.Context) {
 		}
 	}()
 
-	// ── STEP 4: Check patient has no existing pending blood request ───────────
 	var existingCount int
 	if err := tx.QueryRow(ctx,
 		`SELECT COUNT(*) FROM blood_request
@@ -95,7 +76,6 @@ func CreateBloodRequest(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 5: INSERT into blood_request ─────────────────────────────────────
 	today := time.Now().Format("2006-01-02")
 	var requestID int
 	if err := tx.QueryRow(ctx,
@@ -111,7 +91,6 @@ func CreateBloodRequest(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 6: COMMIT ────────────────────────────────────────────────────────
 	if err := tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return
@@ -130,33 +109,6 @@ func CreateBloodRequest(c *gin.Context) {
 	})
 }
 
-// ─── TRANSACTION 4B — BLOOD MANAGER FULFILLS A BLOOD REQUEST ─────────────────
-// Blood manager picks a pending request by request_id.
-// System reads the patient's blood group and quantity needed FROM the request.
-// Then auto-selects the best matching compatible blood from inventory.
-// Records fulfillment and updates blood stock + request status.
-//
-// Flow:
-//  1. Verify blood manager exists
-//  2. Fetch blood request — must be 'pending'
-//     Read: patient blood group + quantity_needed directly from request
-//  3. BEGIN transaction
-//  4. Lock blood request row (FOR UPDATE) — prevents two managers
-//     fulfilling the same request simultaneously
-//  5. Re-verify request is still 'pending' after lock
-//  6. AUTO-SELECT + LOCK best compatible blood entry:
-//     - Matches patient blood group compatibility rules
-//     - Status = 'available' or 'reserved'
-//     - Not expired
-//     - Has enough units >= quantity_needed
-//     - Ordered by expiry_date ASC (use oldest blood first)
-//  7. INSERT into blood_request_fulfillment
-//     trg_blood_fulfillment_before fires → DB-level validation
-//     trg_blood_fulfillment_after fires  → deducts Blood.unit,
-//                                          updates Blood.status,
-//                                          sets Blood_Request.status = 'complete'
-//  8. COMMIT
-
 func FulfillBloodRequest(c *gin.Context) {
 	var req FulfillBloodRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -166,7 +118,6 @@ func FulfillBloodRequest(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// ── STEP 1: Verify blood manager exists ───────────────────────────────────
 	var managerName string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM blood_manager WHERE id = $1`, req.ManagerID,
@@ -175,8 +126,6 @@ func FulfillBloodRequest(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 2: Fetch blood request details ───────────────────────────────────
-	// Read patient blood group + quantity needed straight from the request
 	var patientName, patientBloodGroup string
 	var quantityNeeded int
 	var requestStatus string
@@ -202,7 +151,6 @@ func FulfillBloodRequest(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 3: BEGIN transaction ─────────────────────────────────────────────
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin transaction"})
@@ -214,8 +162,6 @@ func FulfillBloodRequest(c *gin.Context) {
 		}
 	}()
 
-	// ── STEP 4: Lock the blood request row ────────────────────────────────────
-	// Prevents two managers fulfilling the same request at the same time
 	var lockedStatus string
 	if err := tx.QueryRow(ctx,
 		`SELECT status FROM blood_request WHERE id = $1 FOR UPDATE`,
@@ -225,7 +171,6 @@ func FulfillBloodRequest(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 5: Re-verify still pending after lock ────────────────────────────
 	if lockedStatus != "pending" {
 		c.JSON(http.StatusConflict, gin.H{
 			"error": fmt.Sprintf(
@@ -236,10 +181,6 @@ func FulfillBloodRequest(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 6: AUTO-SELECT + LOCK best compatible blood entry ────────────────
-	// Compatibility rules match the DB trigger exactly.
-	// ORDER BY expiry_date ASC = use oldest stock first (reduces waste).
-	// FOR UPDATE = locks the selected blood row immediately.
 	var selectedBloodID int
 	var selectedBloodGroup string
 	var selectedUnits int
@@ -281,11 +222,6 @@ func FulfillBloodRequest(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 7: INSERT into blood_request_fulfillment ─────────────────────────
-	// quantity_provided = quantity_needed (full fulfillment)
-	// trg_blood_fulfillment_before → final DB-level validation
-	// trg_blood_fulfillment_after  → Blood.unit -= qty, Blood.status updated,
-	//                                Blood_Request.status → 'complete'
 	today := time.Now().Format("2006-01-02")
 	var fulfillmentID int
 	if err := tx.QueryRow(ctx,
@@ -301,15 +237,12 @@ func FulfillBloodRequest(c *gin.Context) {
 		})
 		return
 	}
-
-	// ── STEP 8: COMMIT ────────────────────────────────────────────────────────
 	if err := tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return
 	}
 	tx = nil
 
-	// Fetch final request status (trigger sets it to 'complete')
 	var finalStatus string
 	db.Pool.QueryRow(ctx,
 		`SELECT status FROM blood_request WHERE id = $1`, req.RequestID,

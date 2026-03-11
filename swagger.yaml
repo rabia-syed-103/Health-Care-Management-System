@@ -1,0 +1,1694 @@
+openapi: 3.0.3
+info:
+  title: Hospital Management System API
+  description: |
+    REST API for a Hospital Management System supporting 5 roles: Admin, Doctor, Receptionist, Pharmacist, and Blood Manager.
+    
+    All protected routes require a Bearer JWT token. Obtain one via `/api/v1/auth/login`.
+    
+    **Roles & Access:**
+    - `admin` — Full access to all endpoints
+    - `doctor` — Prescriptions, appointments, blood requests, patient history
+    - `receptionist` — Patient management, ER management, appointment booking
+    - `pharmacist` — Medicine stock, dispensing, prescriptions
+    - `blood_manager` — Donor management, blood donations, inventory, request fulfillment
+  version: 1.0.0
+  contact:
+    name: Hospital Backend Support
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+
+tags:
+  - name: Auth
+    description: Register and login for all roles (no token required)
+  - name: Patients
+    description: Patient CRUD — accessible by receptionist and admin
+  - name: Donors
+    description: Donor CRUD — accessible by blood_manager and admin
+  - name: Appointments
+    description: Appointment booking (Transactions 2A & 2B) — receptionist and admin
+  - name: Prescriptions
+    description: Prescribe medicines (Transaction 1A) — doctor and admin
+  - name: Dispensing
+    description: Dispense medicines (Transaction 1B) — pharmacist and admin
+  - name: Blood Donation
+    description: Record blood donations (Transaction 3) — blood_manager and admin
+  - name: Blood Requests
+    description: Request blood (Transaction 4A — doctor/admin) and fulfill blood (Transaction 4B — blood_manager/admin)
+  - name: Receptionist Dashboard
+    description: Dashboard read views — receptionist and admin
+  - name: Doctor Dashboard
+    description: Dashboard read views — doctor and admin
+  - name: Pharmacist Dashboard
+    description: Dashboard read views and medicine management — pharmacist and admin
+  - name: Blood Manager Dashboard
+    description: Dashboard read views — blood_manager and admin
+  - name: Admin
+    description: Staff and medicine management — admin only
+
+
+# SECURITY SCHEME
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login. Include as "Authorization: Bearer <token>"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Resource not found"
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"
+
+    RegisterRequest:
+      type: object
+      required: [name, email, password, role, p_no]
+      properties:
+        name:
+          type: string
+          example: "Dr. Ali Hassan"
+        email:
+          type: string
+          format: email
+          example: "ali@hospital.com"
+        password:
+          type: string
+          format: password
+          example: "securepassword123"
+        role:
+          type: string
+          enum: [admin, doctor, receptionist, pharmacist, blood_manager]
+          example: "doctor"
+        p_no:
+          type: string
+          example: "03001234567"
+        specialization:
+          type: string
+          description: Required only for doctor role
+          example: "Cardiology"
+
+    LoginRequest:
+      type: object
+      required: [email, password, role]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "ali@hospital.com"
+        password:
+          type: string
+          format: password
+          example: "securepassword123"
+        role:
+          type: string
+          enum: [admin, doctor, receptionist, pharmacist, blood_manager]
+          example: "doctor"
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        role:
+          type: string
+          example: "doctor"
+        user_id:
+          type: integer
+          example: 1
+
+    PatientRequest:
+      type: object
+      required: [name, email, b_gr, p_no]
+      properties:
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john@test.com"
+        b_gr:
+          type: string
+          example: "A+"
+        p_no:
+          type: string
+          example: "03001234567"
+
+    PatientUpdateRequest:
+      type: object
+      description: Send only the fields you want to update — blank fields are ignored
+      properties:
+        name:
+          type: string
+          example: "John Doe"
+        b_gr:
+          type: string
+          example: "B+"
+        p_no:
+          type: string
+          example: "03009999999"
+
+    PatientResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          example: "john@test.com"
+        b_gr:
+          type: string
+          example: "A+"
+        p_no:
+          type: string
+          example: "03001234567"
+
+    DonorRequest:
+      type: object
+      required: [name, email, blood_group, p_no]
+      properties:
+        name:
+          type: string
+          example: "Ahmed Khan"
+        email:
+          type: string
+          format: email
+          example: "ahmed@donor.com"
+        blood_group:
+          type: string
+          example: "O+"
+        p_no:
+          type: string
+          example: "03111234567"
+
+    DonorUpdateRequest:
+      type: object
+      description: Send only the fields you want to update — blank fields are ignored
+      properties:
+        name:
+          type: string
+          example: "Ahmed Khan"
+        p_no:
+          type: string
+          example: "03119999999"
+
+    AppointmentRequest:
+      type: object
+      required: [patient_id, doctor_id, receptionist_id, date, time]
+      properties:
+        patient_id:
+          type: integer
+          example: 1
+        doctor_id:
+          type: integer
+          example: 2
+        receptionist_id:
+          type: integer
+          example: 3
+        date:
+          type: string
+          format: date
+          example: "2026-03-15"
+        time:
+          type: string
+          example: "10:00"
+
+    AppointmentResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Appointment booked successfully"
+        appointment_id:
+          type: integer
+          example: 1
+        status:
+          type: string
+          example: "pending"
+        ot_id:
+          type: string
+          example: "None"
+
+    PrescriptionMedicine:
+      type: object
+      required: [medicine_id, quantity]
+      properties:
+        medicine_id:
+          type: integer
+          example: 1
+        quantity:
+          type: integer
+          example: 2
+
+    PrescriptionRequest:
+      type: object
+      required: [doctor_id, patient_id, medicines]
+      properties:
+        doctor_id:
+          type: integer
+          example: 1
+        patient_id:
+          type: integer
+          example: 1
+        medicines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrescriptionMedicine'
+
+    PrescriptionResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Prescription created successfully"
+        prescription_id:
+          type: integer
+          example: 1
+        patient:
+          type: string
+          example: "John Doe"
+        doctor:
+          type: string
+          example: "Dr. Ali Hassan"
+        medicines_count:
+          type: integer
+          example: 2
+
+    DispensingRequest:
+      type: object
+      required: [prescription_id, pharmacist_id]
+      properties:
+        prescription_id:
+          type: integer
+          example: 1
+        pharmacist_id:
+          type: integer
+          example: 1
+
+    DispensingResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Medicines dispensed successfully"
+        prescription_id:
+          type: integer
+          example: 1
+        pharmacist:
+          type: string
+          example: "Sara Malik"
+        medicines_count:
+          type: integer
+          example: 2
+
+    BloodDonationRequest:
+      type: object
+      required: [donor_id, manager_id]
+      properties:
+        donor_id:
+          type: integer
+          example: 1
+        manager_id:
+          type: integer
+          example: 1
+
+    BloodDonationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Blood donation recorded successfully"
+        donation_id:
+          type: integer
+          example: 1
+        blood_id:
+          type: integer
+          example: 1
+        donor:
+          type: string
+          example: "Ahmed Khan"
+        blood_group:
+          type: string
+          example: "O+"
+        expiry_date:
+          type: string
+          example: "2026-05-20"
+        units_added:
+          type: integer
+          example: 1
+
+    BloodRequestCreate:
+      type: object
+      required: [doctor_id, patient_id, quantity_needed]
+      properties:
+        doctor_id:
+          type: integer
+          example: 1
+        patient_id:
+          type: integer
+          example: 1
+        quantity_needed:
+          type: integer
+          example: 3
+
+    BloodRequestFulfill:
+      type: object
+      required: [request_id, manager_id]
+      properties:
+        request_id:
+          type: integer
+          example: 1
+        manager_id:
+          type: integer
+          example: 1
+
+    MedicineRequest:
+      type: object
+      required: [batch_no, name, stock, expiry_date]
+      properties:
+        batch_no:
+          type: string
+          example: "B001"
+        name:
+          type: string
+          example: "Paracetamol"
+        stock:
+          type: integer
+          example: 100
+        expiry_date:
+          type: string
+          format: date
+          example: "2027-01-01"
+
+    MedicineUpdateRequest:
+      type: object
+      description: Send only the fields you want to update — blank fields are ignored
+      properties:
+        name:
+          type: string
+          example: "Paracetamol 500mg"
+        stock:
+          type: integer
+          example: 150
+        expiry_date:
+          type: string
+          format: date
+          example: "2028-01-01"
+
+    ERPatientRequest:
+      type: object
+      required: [name, age, p_no, arrival_time]
+      properties:
+        name:
+          type: string
+          example: "Ahmed Khan"
+        age:
+          type: integer
+          example: 35
+        p_no:
+          type: string
+          example: "03001234567"
+        arrival_time:
+          type: string
+          example: "14:30"
+
+    EREntryRequest:
+      type: object
+      required: [er_patient_id, doctor_id, er_id]
+      properties:
+        er_patient_id:
+          type: integer
+          example: 1
+        doctor_id:
+          type: integer
+          example: 2
+        er_id:
+          type: integer
+          example: 1
+        status:
+          type: string
+          enum: [waiting, in_treatment, admitted, discharged, transferred]
+          default: waiting
+
+    StaffRequest:
+      type: object
+      required: [name, email, p_no, password]
+      properties:
+        name:
+          type: string
+          example: "Dr. Sara Malik"
+        email:
+          type: string
+          format: email
+          example: "sara@hospital.com"
+        p_no:
+          type: string
+          example: "03001234567"
+        password:
+          type: string
+          format: password
+          example: "securepass123"
+        specialization:
+          type: string
+          description: Required for doctors only
+          example: "Neurology"
+
+    StaffUpdateRequest:
+      type: object
+      description: Send only the fields you want to update — blank fields are ignored
+      properties:
+        name:
+          type: string
+          example: "Dr. Sara Malik"
+        p_no:
+          type: string
+          example: "03009999999"
+        specialization:
+          type: string
+          example: "Cardiology"
+
+# PATHS
+paths:
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: |
+        Creates a new account for any role. No token required.
+        Passwords are hashed with **bcrypt** before storage — plaintext is never stored.
+        For `doctor` role, `specialization` field is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Missing or invalid fields
+        '409':
+          description: Email already registered
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive JWT token
+      description: |
+        Validates credentials and returns a signed JWT containing `user_id` and `role`.
+        No token required. Use the returned token as `Authorization: Bearer <token>` on all protected routes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials or wrong role
+
+  /patients/:
+    get:
+      tags: [Patients]
+      summary: View all patients
+      description: "**Allowed roles:** receptionist, admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all patients
+          content:
+            application/json:
+              example:
+                patients:
+                  - id: 1
+                    name: "John Doe"
+                    email: "john@test.com"
+                    b_gr: "A+"
+                    p_no: "03001234567"
+        '403':
+          description: Insufficient permissions
+    post:
+      tags: [Patients]
+      summary: Add a new patient
+      description: "**Allowed roles:** receptionist, admin. ID is auto-generated by PostgreSQL SERIAL — do not include it in the request."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientRequest'
+      responses:
+        '201':
+          description: Patient added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientResponse'
+        '409':
+          description: Email already exists
+
+  /patients/{email}:
+    parameters:
+      - name: email
+        in: path
+        required: true
+        schema:
+          type: string
+          format: email
+        example: john@test.com
+    get:
+      tags: [Patients]
+      summary: View a single patient by email
+      description: "**Allowed roles:** receptionist, admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Patient details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientResponse'
+        '404':
+          description: Patient not found
+    put:
+      tags: [Patients]
+      summary: Edit a patient by email
+      description: "**Allowed roles:** receptionist, admin. Only send the fields you want to update — blank fields are ignored."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientUpdateRequest'
+      responses:
+        '200':
+          description: Patient updated
+        '404':
+          description: Patient not found
+    delete:
+      tags: [Patients]
+      summary: Delete a patient by email
+      description: "**Allowed roles:** receptionist, admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Patient deleted
+        '404':
+          description: Patient not found
+
+  /donors/:
+    get:
+      tags: [Donors]
+      summary: View all donors
+      description: "**Allowed roles:** blood_manager, admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all donors
+          content:
+            application/json:
+              example:
+                donors:
+                  - id: 1
+                    name: "Ahmed Khan"
+                    email: "ahmed@donor.com"
+                    blood_group: "O+"
+                    p_no: "03111234567"
+                    last_donate: "2025-12-01"
+        '403':
+          description: Insufficient permissions
+    post:
+      tags: [Donors]
+      summary: Add a new donor
+      description: "**Allowed roles:** blood_manager, admin. ID is auto-generated by PostgreSQL SERIAL."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DonorRequest'
+      responses:
+        '201':
+          description: Donor added successfully
+        '409':
+          description: Email already exists
+
+  /donors/{email}:
+    parameters:
+      - name: email
+        in: path
+        required: true
+        schema:
+          type: string
+          format: email
+        example: ahmed@donor.com
+    get:
+      tags: [Donors]
+      summary: View a single donor by email
+      description: "**Allowed roles:** blood_manager, admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Donor details
+        '404':
+          description: Donor not found
+    put:
+      tags: [Donors]
+      summary: Edit a donor by email
+      description: "**Allowed roles:** blood_manager, admin. Only send the fields you want to update."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DonorUpdateRequest'
+      responses:
+        '200':
+          description: Donor updated
+        '404':
+          description: Donor not found
+    delete:
+      tags: [Donors]
+      summary: Delete a donor by email
+      description: "**Allowed roles:** blood_manager, admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Donor deleted
+        '404':
+          description: Donor not found
+
+  /appointments/book:
+    post:
+      tags: [Appointments]
+      summary: "Transaction 2A: Book regular appointment (no OT)"
+      description: |
+        **Allowed roles:** receptionist, admin
+        
+        **Scenario:** A patient comes in and asks the receptionist to book an appointment with a doctor.
+        
+        **Transaction Flow:**
+        1. Pre-checks (no TX): Validate patient, doctor, receptionist exist → 404 if any missing
+        2. `BEGIN TRANSACTION`
+        3. Check doctor is free at requested date + time → `ROLLBACK` if conflict
+        4. `INSERT` appointment (ot_id = NULL, status = 'pending')
+        5. DB trigger `trg_appointment_before` fires as second guard against double-booking
+        6. `COMMIT`
+        
+        **Rollback condition:** Doctor already has a pending appointment at the same date and time.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRequest'
+            example:
+              patient_id: 1
+              doctor_id: 2
+              receptionist_id: 3
+              date: "2026-03-15"
+              time: "10:00"
+      responses:
+        '201':
+          description: Appointment booked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+              example:
+                message: "Appointment booked successfully"
+                appointment_id: 1
+                status: "pending"
+                ot_id: "None"
+        '400':
+          description: Doctor already booked at that time — transaction rolled back
+          content:
+            application/json:
+              example:
+                error: "Doctor already has an appointment at this date and time"
+        '404':
+          description: Patient, doctor, or receptionist not found
+
+  /appointments/book-ot:
+    post:
+      tags: [Appointments]
+      summary: "Transaction 2B: Book OT appointment (doctor requests OT for patient)"
+      description: |
+        **Allowed roles:** receptionist, admin
+        
+        **Scenario:** A doctor requests an OT for a specific patient. The receptionist finds an available OT and books the appointment.
+        
+        **Transaction Flow:**
+        1. Pre-checks (no TX): Validate patient, doctor, receptionist exist → 404 if any missing
+        2. `BEGIN TRANSACTION`
+        3. Check doctor is free at requested date + time → `ROLLBACK` if conflict
+        4. Find OT where `is_available = TRUE` AND not booked at same date+time → `ROLLBACK` if none found
+        5. Lock OT row with `SELECT FOR UPDATE` — prevents two receptionists grabbing same OT simultaneously (race condition protection)
+        6. `INSERT` appointment (ot_id = found OT, status = 'pending')
+        7. `UPDATE ot SET is_available = FALSE`
+        8. `COMMIT`
+        
+        **Rollback conditions:** Doctor conflict, no free OT available at that time, concurrent booking race condition.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRequest'
+            example:
+              patient_id: 1
+              doctor_id: 2
+              receptionist_id: 3
+              date: "2026-03-15"
+              time: "10:00"
+      responses:
+        '201':
+          description: OT appointment booked successfully
+          content:
+            application/json:
+              example:
+                message: "OT Appointment booked successfully"
+                appointment_id: 2
+                status: "pending"
+                ot_id: "3"
+        '400':
+          description: Doctor conflict or no OT available — transaction rolled back
+          content:
+            application/json:
+              example:
+                error: "No OT available at this date and time"
+        '404':
+          description: Patient, doctor, or receptionist not found
+
+  /prescriptions/prescribe:
+    post:
+      tags: [Prescriptions]
+      summary: "Transaction 1A: Doctor prescribes medicines to a patient"
+      description: |
+        **Allowed roles:** doctor, admin
+        
+        **Scenario:** A doctor prescribes medicines to a patient who has an existing appointment.
+        
+        **Transaction Flow:**
+        1. Pre-checks (no TX): Validate patient exists, doctor exists, active appointment exists between them
+        2. `BEGIN TRANSACTION`
+        3. `INSERT` prescription — DB trigger `trg_prescription_before` fires (prevents duplicate same-day prescription for same doctor+patient)
+        4. Loop through each medicine: validate existence and expiry, `INSERT` prescription_medicine — DB trigger `trg_pm_before` fires
+        5. `COMMIT`
+        
+        **Rollback conditions:** Same doctor+patient already has a prescription today, expired medicine included, medicine not found in DB.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrescriptionRequest'
+            example:
+              doctor_id: 1
+              patient_id: 1
+              medicines:
+                - medicine_id: 1
+                  quantity: 2
+                - medicine_id: 2
+                  quantity: 1
+      responses:
+        '201':
+          description: Prescription created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionResponse'
+        '400':
+          description: No valid appointment, expired medicine, or duplicate prescription — transaction rolled back
+          content:
+            application/json:
+              example:
+                error: "A prescription already exists for this patient from this doctor today"
+        '404':
+          description: Patient, doctor, or medicine not found
+
+  /dispensing/dispense:
+    post:
+      tags: [Dispensing]
+      summary: "Transaction 1B: Pharmacist dispenses medicines from a prescription"
+      description: |
+        **Allowed roles:** pharmacist, admin
+        
+        **Scenario:** Patient brings prescription to pharmacist. Pharmacist verifies stock and expiry, dispenses medicines, and stock is auto-deducted.
+        
+        **Transaction Flow:**
+        1. Pre-checks (no TX): Validate pharmacist exists, prescription has medicines
+        2. Pre-validate ALL medicines BEFORE opening TX: check expiry and stock (avoids holding TX open unnecessarily)
+        3. `BEGIN TRANSACTION`
+        4. Loop: `INSERT` dispensing rows — DB trigger `trg_dispensing_before` re-validates expiry+stock as DB-level guard, DB trigger `trg_dispensing_after_insert` auto-deducts stock
+        5. `COMMIT`
+        
+        **Rollback conditions:** Expired medicine, insufficient stock. Stock deduction is handled entirely by the DB trigger — no manual UPDATE in application code.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispensingRequest'
+            example:
+              prescription_id: 1
+              pharmacist_id: 1
+      responses:
+        '200':
+          description: Medicines dispensed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DispensingResponse'
+        '400':
+          description: Insufficient stock or expired medicine — transaction rolled back
+          content:
+            application/json:
+              example:
+                error: "Insufficient stock for 'Paracetamol'. Available: 0, Needed: 2"
+        '404':
+          description: Pharmacist or prescription not found
+
+  /blood/donate:
+    post:
+      tags: [Blood Donation]
+      summary: "Transaction 3: Record blood donation with 90-day eligibility check"
+      description: |
+        **Allowed roles:** blood_manager, admin
+        
+        **Scenario:** A donor arrives to donate blood. Blood manager verifies eligibility (min 90 days since last donation), records donation, and updates inventory.
+        
+        **Transaction Flow:**
+        1. Pre-checks (no TX): Validate blood manager and donor exist
+        2. Check 90-day eligibility from last_donate date (pre-check before TX)
+        3. `BEGIN TRANSACTION`
+        4. Lock donor row with `SELECT FOR UPDATE` — prevents same donor donating at two locations simultaneously
+        5. Re-check 90-day eligibility AFTER lock — guards against race condition
+        6. `INSERT` blood record (unit = 0, expiry = today + 42 days)
+        7. `INSERT` donation — DB trigger `trg_donor_management_before` fires (final DB-level 90-day guard), DB trigger `trg_donor_management_after` fires (Blood.unit +1, Donor.last_donate = today)
+        8. `COMMIT`
+        
+        **Rollback conditions:** Donor donated within last 90 days, race condition on simultaneous donation attempts.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BloodDonationRequest'
+            example:
+              donor_id: 1
+              manager_id: 1
+      responses:
+        '201':
+          description: Donation recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BloodDonationResponse'
+        '400':
+          description: Donor not eligible — donated within last 90 days
+          content:
+            application/json:
+              example:
+                error: "Donor not eligible until 2026-06-10"
+        '404':
+          description: Donor or blood manager not found
+
+  /blood-request/create:
+    post:
+      tags: [Blood Requests]
+      summary: "Transaction 4A: Doctor creates a blood request for a patient"
+      description: |
+        **Allowed roles:** doctor, admin
+        
+        **Scenario:** A doctor requests blood for a specific patient with a defined quantity. Recorded as pending for the blood manager to fulfill.
+        
+        **Transaction Flow:**
+        1. Pre-checks (no TX): Validate doctor and patient exist
+        2. `BEGIN TRANSACTION`
+        3. Check no pending blood request already exists for this patient → `ROLLBACK` if duplicate
+        4. `INSERT` blood_request (status = 'pending')
+        5. `COMMIT`
+        
+        **Rollback condition:** Patient already has an unresolved pending blood request.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BloodRequestCreate'
+            example:
+              doctor_id: 1
+              patient_id: 1
+              quantity_needed: 3
+      responses:
+        '201':
+          description: Blood request created successfully
+          content:
+            application/json:
+              example:
+                message: "Blood request created successfully"
+                request_id: 1
+                patient: "John Doe"
+                blood_group: "A+"
+                quantity_needed: 3
+                status: "pending"
+        '400':
+          description: Patient already has a pending blood request — transaction rolled back
+          content:
+            application/json:
+              example:
+                error: "Patient already has a pending blood request. Fulfill or cancel it first."
+        '404':
+          description: Doctor or patient not found
+
+  /blood-fulfill/fulfill:
+    post:
+      tags: [Blood Requests]
+      summary: "Transaction 4B: Blood manager fulfills a pending blood request"
+      description: |
+        **Allowed roles:** blood_manager, admin
+        
+        **Scenario:** Blood manager sees a pending request and fulfills it. The system automatically finds and assigns compatible available blood — no blood_id required from the manager.
+        
+        **Transaction Flow:**
+        1. Pre-checks (no TX): Validate blood manager exists, request exists and status = 'pending'
+        2. `BEGIN TRANSACTION`
+        3. Lock blood_request row with `SELECT FOR UPDATE` — prevents two managers hitting same request simultaneously
+        4. Re-check request is still 'pending' after lock
+        5. Auto-select blood: compatible blood group, status = available/reserved, not expired, units >= quantity_needed, `ORDER BY expiry ASC` (oldest blood first), `FOR UPDATE` lock on selected blood row
+        6. `INSERT` blood_request_fulfillment — DB trigger `trg_blood_fulfillment_before` re-validates, DB trigger `trg_blood_fulfillment_after` deducts units and updates blood/request status
+        7. `COMMIT`
+        
+        **Rollback conditions:** No compatible available blood found, blood expired or depleted between pre-check and lock.
+        
+        **Note:** No `blood_id` in the request body — the system automatically selects the best available matching unit using blood type compatibility and oldest-first ordering.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BloodRequestFulfill'
+            example:
+              request_id: 1
+              manager_id: 1
+      responses:
+        '200':
+          description: Blood request fulfilled successfully
+          content:
+            application/json:
+              example:
+                message: "Blood request fulfilled successfully"
+                request_id: 1
+                blood_id: 3
+                blood_group: "A+"
+                quantity_provided: 3
+                status: "complete"
+        '400':
+          description: No compatible blood available or request already fulfilled — transaction rolled back
+          content:
+            application/json:
+              example:
+                error: "No compatible available blood found for blood group A+"
+        '404':
+          description: Blood manager or request not found
+
+  /receptionist/appointments:
+    get:
+      tags: [Receptionist Dashboard]
+      summary: View all appointments with patient and doctor details
+      description: "**Allowed roles:** receptionist, admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all appointments
+          content:
+            application/json:
+              example:
+                appointments:
+                  - appointment_id: 1
+                    patient_name: "John Doe"
+                    doctor_name: "Dr. Ali Hassan"
+                    date: "2026-03-15"
+                    time: "10:00"
+                    status: "pending"
+                    ot_id: "None"
+
+  /receptionist/er-patients:
+    get:
+      tags: [Receptionist Dashboard]
+      summary: View all ER walk-in patients
+      description: "**Allowed roles:** receptionist, admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all ER patients
+    post:
+      tags: [Receptionist Dashboard]
+      summary: Register a new ER walk-in patient
+      description: "**Allowed roles:** receptionist, admin"
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ERPatientRequest'
+      responses:
+        '201':
+          description: ER patient registered successfully
+
+  /receptionist/er-entries:
+    get:
+      tags: [Receptionist Dashboard]
+      summary: View all ER patient entries with full details
+      description: "**Allowed roles:** receptionist, admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all ER entries
+    post:
+      tags: [Receptionist Dashboard]
+      summary: Add ER patient entry — assign to doctor and shift
+      description: |
+        **Allowed roles:** receptionist, admin
+        
+        The doctor must already be assigned to the specified ER shift in the `er_shift_doctor` table.
+        `status` defaults to `waiting` if not provided.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EREntryRequest'
+      responses:
+        '201':
+          description: ER entry added successfully
+        '400':
+          description: Doctor not assigned to that ER shift
+
+  /doctor/my-appointments:
+    get:
+      tags: [Doctor Dashboard]
+      summary: View my appointments and schedule
+      description: |
+        **Allowed roles:** doctor, admin
+        
+        Doctor ID is read automatically from the JWT token — no ID needed in the URL. A doctor can only ever see their own schedule.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Doctor's appointment schedule
+          content:
+            application/json:
+              example:
+                appointments:
+                  - patient_name: "John Doe"
+                    blood_group: "A+"
+                    p_no: "03001234567"
+                    date: "2026-03-15"
+                    time: "10:00"
+                    status: "pending"
+                    ot: "None"
+
+  /doctor/patient-history/{email}:
+    get:
+      tags: [Doctor Dashboard]
+      summary: View full patient history by email
+      description: |
+        **Allowed roles:** doctor, admin
+        
+        Returns patient info, all appointments across all doctors, and all prescriptions with their medicines.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+          example: john@test.com
+      responses:
+        '200':
+          description: Full patient history
+          content:
+            application/json:
+              example:
+                patient:
+                  id: 1
+                  name: "John Doe"
+                  b_gr: "A+"
+                  p_no: "03001234567"
+                appointments:
+                  - date: "2026-03-15"
+                    time: "10:00"
+                    doctor_name: "Dr. Ali"
+                    status: "pending"
+                prescriptions:
+                  - id: 1
+                    date: "2026-03-15"
+                    doctor_name: "Dr. Ali"
+                    medicines:
+                      - medicine_name: "Paracetamol"
+                        quantity: 2
+        '404':
+          description: Patient not found
+
+  /pharmacist/pending-prescriptions:
+    get:
+      tags: [Pharmacist Dashboard]
+      summary: View all prescriptions not yet dispensed
+      description: |
+        **Allowed roles:** pharmacist, admin
+        
+        Returns prescriptions with no dispensing record yet — includes patient name, doctor, date, and medicines list.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of pending prescriptions
+          content:
+            application/json:
+              example:
+                prescriptions:
+                  - prescription_id: 1
+                    patient_name: "John Doe"
+                    doctor_name: "Dr. Ali"
+                    date: "2026-03-15"
+                    medicines:
+                      - name: "Paracetamol"
+                        quantity: 2
+
+  /pharmacist/medicine-stock:
+    get:
+      tags: [Pharmacist Dashboard]
+      summary: View medicine stock ordered by urgency
+      description: |
+        **Allowed roles:** pharmacist, admin
+        
+        Returns all medicines ordered by urgency: OUT OF STOCK and EXPIRED first, then CRITICAL (≤7 days), EXPIRING SOON (≤30 days), then OK.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Medicine stock list with urgency labels
+          content:
+            application/json:
+              example:
+                medicines:
+                  - id: 1
+                    batch_no: "B001"
+                    name: "Paracetamol"
+                    stock: 0
+                    expiry_date: "2027-01-01"
+                    status: "OUT OF STOCK"
+
+  /pharmacist/medicine:
+    post:
+      tags: [Pharmacist Dashboard]
+      summary: Add new medicine or restock existing batch
+      description: |
+        **Allowed roles:** pharmacist, admin
+        
+        Smart upsert based on `batch_no`:
+        - `batch_no` **exists** → adds stock on top + updates expiry → `"action": "updated"`
+        - `batch_no` **not found** → creates new medicine row → `"action": "created"`
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicineRequest'
+            example:
+              batch_no: "B001"
+              name: "Paracetamol"
+              stock: 100
+              expiry_date: "2027-01-01"
+      responses:
+        '200':
+          description: Existing medicine restocked
+          content:
+            application/json:
+              example:
+                message: "Medicine stock updated"
+                action: "updated"
+                batch_no: "B001"
+                new_stock: 200
+        '201':
+          description: New medicine created
+          content:
+            application/json:
+              example:
+                message: "Medicine added successfully"
+                action: "created"
+                id: 4
+
+  /blood-manager/donations:
+    get:
+      tags: [Blood Manager Dashboard]
+      summary: View full blood donation history
+      description: "**Allowed roles:** blood_manager, admin"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Donation history
+          content:
+            application/json:
+              example:
+                donations:
+                  - donation_id: 1
+                    donor_name: "Ahmed Khan"
+                    blood_group: "O+"
+                    manager_name: "Sara Manager"
+                    units: 1
+                    expiry_date: "2026-05-20"
+
+  /blood-manager/inventory:
+    get:
+      tags: [Blood Manager Dashboard]
+      summary: View blood inventory (available and reserved only)
+      description: |
+        **Allowed roles:** blood_manager, admin
+        
+        Returns only available and reserved blood with units > 0, ordered by urgency — CRITICAL (≤7 days to expiry) first.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Blood inventory with urgency labels
+          content:
+            application/json:
+              example:
+                inventory:
+                  - blood_id: 1
+                    blood_group: "A+"
+                    units: 5
+                    status: "available"
+                    expiry_date: "2026-03-14"
+                    urgency: "CRITICAL"
+
+  /blood-manager/pending-requests:
+    get:
+      tags: [Blood Manager Dashboard]
+      summary: View all pending blood requests
+      description: |
+        **Allowed roles:** blood_manager, admin
+        
+        Returns all status = 'pending' requests ordered oldest first (FIFO). Includes patient name, blood group, quantity needed, and requesting doctor.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Pending blood requests
+          content:
+            application/json:
+              example:
+                pending_requests:
+                  - request_id: 1
+                    patient_name: "John Doe"
+                    blood_group: "A+"
+                    quantity_needed: 3
+                    doctor_name: "Dr. Ali"
+                    created_at: "2026-03-07"
+
+  /blood-manager/expired-blood:
+    get:
+      tags: [Blood Manager Dashboard]
+      summary: View all expired blood units
+      description: |
+        **Allowed roles:** blood_manager, admin
+        
+        Returns all blood past expiry date or with status = 'expired'. Includes `days_expired` for tracking how long each unit has been sitting.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Expired blood units
+          content:
+            application/json:
+              example:
+                expired:
+                  - blood_id: 2
+                    blood_group: "B+"
+                    units: 1
+                    expiry_date: "2026-02-01"
+                    days_expired: 35
+
+  /admin/doctors:
+    get:
+      tags: [Admin]
+      summary: View all doctors
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all doctors
+    post:
+      tags: [Admin]
+      summary: Add a new doctor
+      description: "**Allowed roles:** admin only. Password bcrypt hashed. `specialization` required."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+            example:
+              name: "Dr. Sara Malik"
+              email: "sara@hospital.com"
+              p_no: "03001234567"
+              password: "securepass123"
+              specialization: "Neurology"
+      responses:
+        '201':
+          description: Doctor added successfully
+        '409':
+          description: Email already exists
+
+  /admin/doctors/{email}:
+    parameters:
+      - name: email
+        in: path
+        required: true
+        schema:
+          type: string
+          format: email
+        example: sara@hospital.com
+    put:
+      tags: [Admin]
+      summary: Edit doctor by email
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffUpdateRequest'
+      responses:
+        '200':
+          description: Doctor updated
+        '404':
+          description: Doctor not found
+    delete:
+      tags: [Admin]
+      summary: Delete doctor by email
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Doctor deleted
+        '404':
+          description: Doctor not found
+
+  /admin/receptionists:
+    get:
+      tags: [Admin]
+      summary: View all receptionists
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all receptionists
+    post:
+      tags: [Admin]
+      summary: Add a new receptionist
+      description: "**Allowed roles:** admin only. Password bcrypt hashed."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+      responses:
+        '201':
+          description: Receptionist added successfully
+        '409':
+          description: Email already exists
+
+  /admin/receptionists/{email}:
+    parameters:
+      - name: email
+        in: path
+        required: true
+        schema:
+          type: string
+          format: email
+    put:
+      tags: [Admin]
+      summary: Edit receptionist by email
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffUpdateRequest'
+      responses:
+        '200':
+          description: Receptionist updated
+        '404':
+          description: Receptionist not found
+    delete:
+      tags: [Admin]
+      summary: Delete receptionist by email
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Receptionist deleted
+        '404':
+          description: Receptionist not found
+
+  /admin/pharmacists:
+    get:
+      tags: [Admin]
+      summary: View all pharmacists
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all pharmacists
+    post:
+      tags: [Admin]
+      summary: Add a new pharmacist
+      description: "**Allowed roles:** admin only. Password bcrypt hashed."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+      responses:
+        '201':
+          description: Pharmacist added successfully
+        '409':
+          description: Email already exists
+
+  /admin/pharmacists/{email}:
+    parameters:
+      - name: email
+        in: path
+        required: true
+        schema:
+          type: string
+          format: email
+    put:
+      tags: [Admin]
+      summary: Edit pharmacist by email
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffUpdateRequest'
+      responses:
+        '200':
+          description: Pharmacist updated
+        '404':
+          description: Pharmacist not found
+    delete:
+      tags: [Admin]
+      summary: Delete pharmacist by email
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Pharmacist deleted
+        '404':
+          description: Pharmacist not found
+  /pharmacist/medicine/{name}:
+  get:
+    tags: [Pharmacist Dashboard]
+    summary: Search medicine by name
+    description: "**Allowed roles:** pharmacist, admin. Case-insensitive. Returns all batches matching the name."
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+        example: Paracetamol
+    responses:
+      '200':
+        description: List of matching medicine batches
+      '404':
+        description: No medicine found with that name
+
+  /admin/blood-managers:
+    get:
+      tags: [Admin]
+      summary: View all blood managers
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all blood managers
+    post:
+      tags: [Admin]
+      summary: Add a new blood manager
+      description: "**Allowed roles:** admin only. Password bcrypt hashed."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+      responses:
+        '201':
+          description: Blood manager added successfully
+        '409':
+          description: Email already exists
+
+  /admin/blood-managers/{email}:
+    parameters:
+      - name: email
+        in: path
+        required: true
+        schema:
+          type: string
+          format: email
+    put:
+      tags: [Admin]
+      summary: Edit blood manager by email
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffUpdateRequest'
+      responses:
+        '200':
+          description: Blood manager updated
+        '404':
+          description: Blood manager not found
+    delete:
+      tags: [Admin]
+      summary: Delete blood manager by email
+      description: "**Allowed roles:** admin only"
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Blood manager deleted
+        '404':
+          description: Blood manager not found
+
+  

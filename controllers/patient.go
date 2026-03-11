@@ -8,8 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ─── STRUCTS ──────────────────────────────────────────────────────────────────
-
 type AddPatientRequest struct {
 	Name  string `json:"name"  binding:"required"`
 	Email string `json:"email" binding:"required"`
@@ -23,7 +21,6 @@ type EditPatientRequest struct {
 	PNo  string `json:"p_no"`
 }
 
-// ─── ADD PATIENT ──────────────────────────────────────────────────────────────
 func AddPatient(c *gin.Context) {
 	var req AddPatientRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,7 +50,6 @@ func AddPatient(c *gin.Context) {
 	})
 }
 
-// ─── VIEW ALL PATIENTS ────────────────────────────────────────────────────────
 func GetAllPatients(c *gin.Context) {
 	ctx := context.Background()
 	rows, err := db.Pool.Query(ctx,
@@ -92,7 +88,6 @@ func GetAllPatients(c *gin.Context) {
 	})
 }
 
-// ─── VIEW SINGLE PATIENT BY EMAIL ─────────────────────────────────────────────
 func GetPatient(c *gin.Context) {
 	email := c.Param("email")
 	ctx := context.Background()
@@ -116,8 +111,6 @@ func GetPatient(c *gin.Context) {
 	c.JSON(http.StatusOK, patient)
 }
 
-// ─── EDIT PATIENT BY EMAIL ────────────────────────────────────────────────────
-// Email is used to identify the patient — you cannot change the email itself
 func EditPatient(c *gin.Context) {
 	email := c.Param("email")
 	var req EditPatientRequest
@@ -147,7 +140,6 @@ func EditPatient(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Patient updated successfully"})
 }
 
-// ─── DELETE PATIENT BY EMAIL ──────────────────────────────────────────────────
 func DeletePatient(c *gin.Context) {
 	email := c.Param("email")
 	ctx := context.Background()

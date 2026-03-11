@@ -9,8 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ─── REQUEST STRUCTS ──────────────────────────────────────────────────────────
-
 type BookAppointmentRequest struct {
 	PatientID      int    `json:"patient_id"      binding:"required"`
 	DoctorID       int    `json:"doctor_id"       binding:"required"`
@@ -27,19 +25,6 @@ type BookOTAppointmentRequest struct {
 	Time           string `json:"time"            binding:"required"`
 }
 
-// ─── TRANSACTION 2A — PATIENT BOOKS REGULAR APPOINTMENT ─────────────────────
-// Patient comes in, receptionist schedules with a doctor. No OT needed.
-//
-// Flow:
-//  1. Verify patient exists
-//  2. Verify doctor exists
-//  3. Verify receptionist exists
-//  4. BEGIN transaction
-//  5. Check doctor is free at requested date + time
-//  6. INSERT appointment (ot_id = NULL, status = 'pending')
-//     trg_appointment_management fires as 2nd guard against double booking
-//  7. COMMIT
-
 func BookAppointment(c *gin.Context) {
 	var req BookAppointmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -49,7 +34,6 @@ func BookAppointment(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// ── STEP 1: Verify patient exists ────────────────────────────────────────
 	var patientName string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM patient WHERE id = $1`, req.PatientID,
@@ -58,7 +42,6 @@ func BookAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 2: Verify doctor exists ─────────────────────────────────────────
 	var doctorName string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM doctor WHERE id = $1`, req.DoctorID,
@@ -67,7 +50,6 @@ func BookAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 3: Verify receptionist exists ───────────────────────────────────
 	var receptionistName string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM receptionist WHERE id = $1`, req.ReceptionistID,
@@ -76,7 +58,6 @@ func BookAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 4: BEGIN transaction ─────────────────────────────────────────────
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin transaction"})
@@ -88,7 +69,6 @@ func BookAppointment(c *gin.Context) {
 		}
 	}()
 
-	// ── STEP 5: Check doctor is free at requested date + time ─────────────────
 	var conflictCount int
 	if err := tx.QueryRow(ctx,
 		`SELECT COUNT(*) FROM appointment
@@ -113,8 +93,6 @@ func BookAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 6: INSERT appointment (ot_id = NULL, status = 'pending') ─────────
-	// trg_appointment_management fires here as the second guard
 	var appointmentID int
 	if err := tx.QueryRow(ctx,
 		`INSERT INTO appointment (receptionist_id, patient_id, doctor_id, date, time, status, ot_id)
@@ -129,7 +107,6 @@ func BookAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 7: COMMIT ────────────────────────────────────────────────────────
 	if err := tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return
@@ -149,23 +126,6 @@ func BookAppointment(c *gin.Context) {
 	})
 }
 
-// ─── TRANSACTION 2B — DOCTOR REQUESTS OT APPOINTMENT FOR A PATIENT ───────────
-// Doctor needs an operating theatre for a patient.
-// Receptionist finds a free OT at the requested time and books it.
-//
-// Flow:
-//  1. Verify patient exists
-//  2. Verify doctor exists
-//  3. Verify receptionist exists
-//  4. BEGIN transaction
-//  5. Check doctor is free at requested date + time
-//  6. Find a free OT: is_available = TRUE AND not already booked at same slot
-//  7. Lock that OT row (SELECT FOR UPDATE) — prevents two receptionists
-//     grabbing the same OT simultaneously
-//  8. INSERT appointment with found ot_id, status = 'pending'
-//  9. UPDATE ot SET is_available = FALSE
-// 10. COMMIT
-
 func BookOTAppointment(c *gin.Context) {
 	var req BookOTAppointmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -175,7 +135,6 @@ func BookOTAppointment(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// ── STEP 1: Verify patient exists ────────────────────────────────────────
 	var patientName string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM patient WHERE id = $1`, req.PatientID,
@@ -184,7 +143,6 @@ func BookOTAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 2: Verify doctor exists ─────────────────────────────────────────
 	var doctorName string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM doctor WHERE id = $1`, req.DoctorID,
@@ -193,7 +151,6 @@ func BookOTAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 3: Verify receptionist exists ───────────────────────────────────
 	var receptionistName string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM receptionist WHERE id = $1`, req.ReceptionistID,
@@ -202,7 +159,6 @@ func BookOTAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 4: BEGIN transaction ─────────────────────────────────────────────
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin transaction"})
@@ -214,7 +170,6 @@ func BookOTAppointment(c *gin.Context) {
 		}
 	}()
 
-	// ── STEP 5: Check doctor is free at requested date + time ─────────────────
 	var conflictCount int
 	if err := tx.QueryRow(ctx,
 		`SELECT COUNT(*) FROM appointment
@@ -239,10 +194,6 @@ func BookOTAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEPS 6 + 7: Find a free OT and lock it ──────────────────────────────
-	// Free OT = is_available TRUE AND not already booked at this date+time
-	// FOR UPDATE locks the row so two concurrent receptionists can't
-	// grab the same OT at the same time
 	var otID int
 	if err := tx.QueryRow(ctx,
 		`SELECT ot.id
@@ -270,7 +221,6 @@ func BookOTAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 8: INSERT appointment with the found OT ──────────────────────────
 	var appointmentID int
 	if err := tx.QueryRow(ctx,
 		`INSERT INTO appointment (receptionist_id, patient_id, doctor_id, date, time, status, ot_id)
@@ -285,7 +235,6 @@ func BookOTAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 9: Mark OT as unavailable ───────────────────────────────────────
 	if _, err := tx.Exec(ctx,
 		`UPDATE ot SET is_available = FALSE WHERE id = $1`, otID,
 	); err != nil {
@@ -296,7 +245,6 @@ func BookOTAppointment(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 10: COMMIT ───────────────────────────────────────────────────────
 	if err := tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return

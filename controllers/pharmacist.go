@@ -8,18 +8,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ─── STRUCTS ──────────────────────────────────────────────────────────────────
-
 type AddMedicineRequest struct {
 	BatchNo    string `json:"batch_no"     binding:"required"`
 	Name       string `json:"name"         binding:"required"`
 	Stock      int    `json:"stock"        binding:"required,min=1"`
-	ExpiryDate string `json:"expiry_date"  binding:"required"` // "YYYY-MM-DD"
+	ExpiryDate string `json:"expiry_date"  binding:"required"`
 }
 
-// ─── VIEW PENDING PRESCRIPTIONS ───────────────────────────────────────────────
-// Shows all prescriptions that have NOT been fully dispensed yet
-// A prescription is pending if it has no dispensing record at all
 func GetPendingPrescriptions(c *gin.Context) {
 	ctx := context.Background()
 
@@ -89,8 +84,6 @@ func GetPendingPrescriptions(c *gin.Context) {
 	})
 }
 
-// ─── CHECK MEDICINE STOCK ─────────────────────────────────────────────────────
-// View all medicines with their current stock, expiry, and alert status
 func GetMedicineStock(c *gin.Context) {
 	ctx := context.Background()
 
@@ -159,9 +152,6 @@ func GetMedicineStock(c *gin.Context) {
 	})
 }
 
-// ─── ADD / RESTOCK MEDICINE ───────────────────────────────────────────────────
-// If batch_no already exists → add stock + update expiry date
-// If batch_no is new         → insert as a brand new medicine
 func AddMedicine(c *gin.Context) {
 	var req AddMedicineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -171,7 +161,6 @@ func AddMedicine(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// Check if this batch_no already exists
 	var existingID int
 	var existingStock int
 	err := db.Pool.QueryRow(ctx,
@@ -179,7 +168,6 @@ func AddMedicine(c *gin.Context) {
 	).Scan(&existingID, &existingStock)
 
 	if err == nil {
-		// ── Batch exists → UPDATE stock and expiry date ───────────────────────
 		newStock := existingStock + req.Stock
 		_, err = db.Pool.Exec(ctx,
 			`UPDATE medicine
@@ -206,7 +194,6 @@ func AddMedicine(c *gin.Context) {
 		return
 	}
 
-	// ── Batch not found → INSERT as new medicine ──────────────────────────────
 	var newID int
 	err = db.Pool.QueryRow(ctx,
 		`INSERT INTO medicine (batch_no, name, stock, expiry_date)
@@ -226,5 +213,67 @@ func AddMedicine(c *gin.Context) {
 		"name":        req.Name,
 		"stock":       req.Stock,
 		"expiry_date": req.ExpiryDate,
+	})
+}
+
+func GetMedicineByName(c *gin.Context) {
+	name := c.Param("name")
+	ctx := context.Background()
+
+	rows, err := db.Pool.Query(ctx,
+		`SELECT
+			id,
+			batch_no,
+			name,
+			stock,
+			expiry_date::text,
+			CASE
+				WHEN stock = 0                        THEN 'OUT OF STOCK'
+				WHEN expiry_date <= CURRENT_DATE      THEN 'EXPIRED'
+				WHEN expiry_date <= CURRENT_DATE + 7  THEN 'CRITICAL'
+				WHEN expiry_date <= CURRENT_DATE + 30 THEN 'EXPIRING SOON'
+				ELSE                                       'OK'
+			END AS alert
+		 FROM  medicine
+		 WHERE LOWER(name) = LOWER($1)
+		 ORDER BY expiry_date ASC`,
+		name,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search medicine: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	type Medicine struct {
+		ID         int    `json:"id"`
+		BatchNo    string `json:"batch_no"`
+		Name       string `json:"name"`
+		Stock      int    `json:"stock"`
+		ExpiryDate string `json:"expiry_date"`
+		Alert      string `json:"alert"`
+	}
+
+	var medicines []Medicine
+	for rows.Next() {
+		var m Medicine
+		if err := rows.Scan(&m.ID, &m.BatchNo, &m.Name, &m.Stock, &m.ExpiryDate, &m.Alert); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to read medicine data",
+				"details": err.Error(),
+			})
+			return
+		}
+		medicines = append(medicines, m)
+	}
+
+	if len(medicines) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No medicine found with name: " + name})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"medicines": medicines,
+		"count":     len(medicines),
 	})
 }

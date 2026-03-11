@@ -8,14 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ─── STRUCTS ──────────────────────────────────────────────────────────────────
-
 type AddDonorRequest struct {
 	Name       string `json:"name"        binding:"required"`
 	PNo        string `json:"p_no"        binding:"required"`
 	Email      string `json:"email"       binding:"required"`
 	BGr        string `json:"b_gr"        binding:"required"`
-	LastDonate string `json:"last_donate" binding:"required"` // "YYYY-MM-DD"
+	LastDonate string `json:"last_donate" binding:"required"`
 }
 
 type EditDonorRequest struct {
@@ -25,7 +23,6 @@ type EditDonorRequest struct {
 	LastDonate string `json:"last_donate"`
 }
 
-// ─── ADD DONOR ────────────────────────────────────────────────────────────────
 func AddDonor(c *gin.Context) {
 	var req AddDonorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -56,7 +53,6 @@ func AddDonor(c *gin.Context) {
 	})
 }
 
-// ─── VIEW ALL DONORS ──────────────────────────────────────────────────────────
 func GetAllDonors(c *gin.Context) {
 	ctx := context.Background()
 	rows, err := db.Pool.Query(ctx,
@@ -96,7 +92,6 @@ func GetAllDonors(c *gin.Context) {
 	})
 }
 
-// ─── VIEW SINGLE DONOR BY EMAIL ───────────────────────────────────────────────
 func GetDonor(c *gin.Context) {
 	email := c.Param("email")
 	ctx := context.Background()
@@ -121,8 +116,6 @@ func GetDonor(c *gin.Context) {
 	c.JSON(http.StatusOK, donor)
 }
 
-// ─── EDIT DONOR BY EMAIL ──────────────────────────────────────────────────────
-// Email identifies the donor — you cannot change the email itself
 func EditDonor(c *gin.Context) {
 	email := c.Param("email")
 	var req EditDonorRequest
@@ -153,7 +146,6 @@ func EditDonor(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Donor updated successfully"})
 }
 
-// ─── DELETE DONOR BY EMAIL ────────────────────────────────────────────────────
 func DeleteDonor(c *gin.Context) {
 	email := c.Param("email")
 	ctx := context.Background()

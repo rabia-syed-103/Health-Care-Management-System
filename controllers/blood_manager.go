@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ─── VIEW ALL DONATIONS (HISTORY) ─────────────────────────────────────────────
 func GetDonationHistory(c *gin.Context) {
 	ctx := context.Background()
 
@@ -78,8 +77,8 @@ func GetDonationHistory(c *gin.Context) {
 	})
 }
 
-// ─── VIEW BLOOD INVENTORY ─────────────────────────────────────────────────────
-// Shows all available and reserved blood units with expiry alerts
+// VIEW BLOOD INVENTORY
+
 func GetBloodInventory(c *gin.Context) {
 	ctx := context.Background()
 
@@ -157,8 +156,7 @@ func GetBloodInventory(c *gin.Context) {
 	})
 }
 
-// ─── VIEW PENDING BLOOD REQUESTS ──────────────────────────────────────────────
-// Shows all blood requests that still need to be fulfilled
+// VIEW PENDING BLOOD REQUESTS
 func GetPendingBloodRequests(c *gin.Context) {
 	ctx := context.Background()
 
@@ -223,8 +221,7 @@ func GetPendingBloodRequests(c *gin.Context) {
 	})
 }
 
-// ─── VIEW EXPIRED BLOOD UNITS ─────────────────────────────────────────────────
-// Shows all expired blood entries for disposal tracking
+// VIEW EXPIRED BLOOD UNITS
 func GetExpiredBlood(c *gin.Context) {
 	ctx := context.Background()
 

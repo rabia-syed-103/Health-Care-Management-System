@@ -9,7 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// ─── JWT AUTH MIDDLEWARE ──────────────────────────────
+//  JWT AUTH MIDDLEWARE
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -39,14 +39,13 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Set user info in context for use in controllers
 		c.Set("user_id", claims["user_id"])
 		c.Set("role", claims["role"])
 		c.Next()
 	}
 }
 
-// ─── RBAC MIDDLEWARE ──────────────────────────────────
+// RBAC MIDDLEWARE
 
 func RequireRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {

@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// ─── ADMIN ───────────────────────────────────────────
+// Admin
 
 type Admin struct {
 	ID       int    `json:"id"`
@@ -12,7 +12,7 @@ type Admin struct {
 	P_no     string `json:"p_no"`
 }
 
-// ─── DOCTOR ───────────────────────────────────────────
+// Doctor
 
 type Doctor struct {
 	ID             int    `json:"id"`
@@ -23,7 +23,7 @@ type Doctor struct {
 	Password       string `json:"-"`
 }
 
-// ─── RECEPTIONIST ─────────────────────────────────────
+//Receptionist
 
 type Receptionist struct {
 	ID       int    `json:"id"`
@@ -33,7 +33,7 @@ type Receptionist struct {
 	Password string `json:"-"`
 }
 
-// ─── PATIENT ─────────────────────────────────────────
+// Patient
 
 type Patient struct {
 	ID    int    `json:"id"`
@@ -43,7 +43,7 @@ type Patient struct {
 	PNo   string `json:"p_no"`
 }
 
-// ─── APPOINTMENT ──────────────────────────────────────
+// Appointment
 
 type Appointment struct {
 	ID             int       `json:"id"`
@@ -56,14 +56,14 @@ type Appointment struct {
 	OTID           *int      `json:"ot_id,omitempty"`
 }
 
-// ─── OT ───────────────────────────────────────────────
+// Ot
 
 type OT struct {
 	ID          int  `json:"id"`
 	IsAvailable bool `json:"is_available"`
 }
 
-// ─── PHARMACIST ───────────────────────────────────────
+// Pharmacist
 
 type Pharmacist struct {
 	ID       int    `json:"id"`
@@ -73,7 +73,7 @@ type Pharmacist struct {
 	Password string `json:"-"`
 }
 
-// ─── MEDICINE ─────────────────────────────────────────
+// Medicine
 
 type Medicine struct {
 	ID         int       `json:"id"`
@@ -83,7 +83,7 @@ type Medicine struct {
 	BatchNo    string    `json:"batch_no"`
 }
 
-// ─── PRESCRIPTION ─────────────────────────────────────
+//Prescription
 
 type Prescription struct {
 	ID        int       `json:"id"`
@@ -92,7 +92,7 @@ type Prescription struct {
 	Date      time.Time `json:"date"`
 }
 
-// ─── PRESCRIPTION MEDICINE ────────────────────────────
+// PrescriptionMedicine
 
 type PrescriptionMedicine struct {
 	ID             int `json:"id"`
@@ -101,7 +101,7 @@ type PrescriptionMedicine struct {
 	Quantity       int `json:"quantity"`
 }
 
-// ─── DISPENSING ───────────────────────────────────────
+// Dispensing
 
 type Dispensing struct {
 	ID             int `json:"id"`
@@ -111,7 +111,7 @@ type Dispensing struct {
 	Quantity       int `json:"quantity"`
 }
 
-// ─── BLOOD MANAGER ────────────────────────────────────
+// Blood Manager
 
 type BloodManager struct {
 	ID       int    `json:"id"`
@@ -121,7 +121,7 @@ type BloodManager struct {
 	Password string `json:"-"`
 }
 
-// ─── BLOOD ────────────────────────────────────────────
+// Blood
 
 type Blood struct {
 	ID            int       `json:"id"`
@@ -132,7 +132,7 @@ type Blood struct {
 	Unit          int       `json:"unit"`
 }
 
-// ─── BLOOD REQUEST ────────────────────────────────────
+// Blood Request
 
 type BloodRequest struct {
 	ID             int       `json:"id"`
@@ -143,7 +143,7 @@ type BloodRequest struct {
 	RequestDate    time.Time `json:"request_date"`
 }
 
-// ─── BLOOD REQUEST FULFILLMENT ────────────────────────
+// Blood Request Fulfillment
 
 type BloodRequestFulfillment struct {
 	ID               int       `json:"id"`
@@ -154,7 +154,7 @@ type BloodRequestFulfillment struct {
 	FulfillmentDate  time.Time `json:"fulfillment_date"`
 }
 
-// ─── DONOR ────────────────────────────────────────────
+// Donor
 
 type Donor struct {
 	ID         int       `json:"id"`
@@ -165,7 +165,7 @@ type Donor struct {
 	LastDonate time.Time `json:"last_donate"`
 }
 
-// ─── DONATION ─────────────────────────────────────────
+// Donation
 
 type Donation struct {
 	ID           int       `json:"id"`
@@ -176,7 +176,7 @@ type Donation struct {
 	Status       string    `json:"status"`
 }
 
-// ─── ER SHIFT ─────────────────────────────────────────
+// ER Shift
 
 type ERShift struct {
 	ID             int       `json:"id"`
@@ -185,7 +185,7 @@ type ERShift struct {
 	Date           time.Time `json:"date"`
 }
 
-// ─── ER SHIFT DOCTOR ──────────────────────────────────
+// ER Shift Doctor
 
 type ERShiftDoctor struct {
 	ID       int `json:"id"`
@@ -193,7 +193,7 @@ type ERShiftDoctor struct {
 	ERID     int `json:"er_id"`
 }
 
-// ─── ER PATIENT ───────────────────────────────────────
+// ER Patient
 
 type ERPatient struct {
 	ID          int       `json:"id"`
@@ -203,7 +203,7 @@ type ERPatient struct {
 	ArrivalTime time.Time `json:"arrival_time"`
 }
 
-// ─── ER PATIENT ENTRY ─────────────────────────────────
+// er_patient_entry
 
 type ERPatientEntry struct {
 	ID          int    `json:"id"`

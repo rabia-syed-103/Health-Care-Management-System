@@ -10,8 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ─── REQUEST STRUCTS ─────────────────────────────────────────────────────────
-
 type PrescriptionMedicineItem struct {
 	MedicineID int `json:"medicine_id" binding:"required"`
 	Quantity   int `json:"quantity"    binding:"required,min=1"`
@@ -28,16 +26,6 @@ type DispenseMedicinesRequest struct {
 	PharmacistID   int `json:"pharmacist_id"   binding:"required"`
 }
 
-// ─── TRANSACTION 1A — PRESCRIBE MEDICINES ────────────────────────────────────
-// Steps:
-//   1. Verify patient exists
-//   2. Verify doctor exists
-//   3. Verify patient has a completed/pending appointment with that doctor
-//   4. BEGIN transaction
-//   5. Insert into Prescription
-//   6. Insert each medicine into Prescription_Medicine
-//   7. COMMIT
-
 func PrescribeMedicines(c *gin.Context) {
 	var req PrescribeMedicinesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -47,7 +35,6 @@ func PrescribeMedicines(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// ── STEP 1: Verify patient exists ────────────────────────────────────────
 	var patientName string
 	err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM patient WHERE id = $1`, req.PatientID,
@@ -57,7 +44,6 @@ func PrescribeMedicines(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 2: Verify doctor exists ─────────────────────────────────────────
 	var doctorName string
 	err = db.Pool.QueryRow(ctx,
 		`SELECT name FROM doctor WHERE id = $1`, req.DoctorID,
@@ -67,7 +53,6 @@ func PrescribeMedicines(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 3: Verify appointment exists ────────────────────────────────────
 	var appointmentID int
 	err = db.Pool.QueryRow(ctx,
 		`SELECT id FROM appointment
@@ -85,20 +70,18 @@ func PrescribeMedicines(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 4: BEGIN transaction ─────────────────────────────────────────────
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin transaction"})
 		return
 	}
-	// ROLLBACK fires automatically if we return before COMMIT
+
 	defer func() {
 		if tx != nil {
 			tx.Rollback(ctx)
 		}
 	}()
 
-	// ── STEP 5: Insert into Prescription ─────────────────────────────────────
 	var prescriptionID int
 	today := time.Now().Format("2006-01-02")
 
@@ -109,7 +92,7 @@ func PrescribeMedicines(c *gin.Context) {
 		req.DoctorID, req.PatientID, today,
 	).Scan(&prescriptionID)
 	if err != nil {
-		// ROLLBACK triggered by defer
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to create prescription — transaction rolled back",
 			"details": err.Error(),
@@ -117,10 +100,8 @@ func PrescribeMedicines(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 6: Insert each medicine into Prescription_Medicine ──────────────
-	// The trg_pm_before trigger will fire here and catch duplicates automatically
 	for _, med := range req.Medicines {
-		// Verify medicine exists and is not expired before inserting
+
 		var medicineName string
 		var expiryDate time.Time
 		var stock int
@@ -156,12 +137,11 @@ func PrescribeMedicines(c *gin.Context) {
 		}
 	}
 
-	// ── STEP 7: COMMIT ────────────────────────────────────────────────────────
 	if err = tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return
 	}
-	tx = nil // prevent defer rollback after successful commit
+	tx = nil
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message":         "Prescription created successfully",
@@ -173,18 +153,6 @@ func PrescribeMedicines(c *gin.Context) {
 	})
 }
 
-// ─── TRANSACTION 1B — DISPENSE MEDICINES ─────────────────────────────────────
-// Steps:
-//   1. Verify pharmacist exists
-//   2. Verify prescription exists and retrieve its medicines
-//   3. BEGIN transaction
-//   4. For each medicine in prescription:
-//        a. Check stock availability (server-side, before DB trigger fires)
-//        b. Check medicine is not expired
-//        c. Insert into Dispensing (trg_dispensing_before fires → validates)
-//        d. Stock deduction handled by trg_dispensing_after_insert trigger
-//   5. COMMIT
-
 func DispenseMedicines(c *gin.Context) {
 	var req DispenseMedicinesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -194,7 +162,6 @@ func DispenseMedicines(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// ── STEP 1: Verify pharmacist exists ─────────────────────────────────────
 	var pharmacistName string
 	err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM pharmacist WHERE id = $1`, req.PharmacistID,
@@ -204,7 +171,6 @@ func DispenseMedicines(c *gin.Context) {
 		return
 	}
 
-	// ── STEP 2: Fetch prescription medicines ─────────────────────────────────
 	type MedRow struct {
 		PrescMedID int
 		MedicineID int
@@ -242,7 +208,6 @@ func DispenseMedicines(c *gin.Context) {
 		return
 	}
 
-	// ── Server-side pre-validation before opening transaction ─────────────────
 	for _, m := range medicines {
 		if m.Expiry.Before(time.Now()) {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -259,7 +224,6 @@ func DispenseMedicines(c *gin.Context) {
 		}
 	}
 
-	// ── STEP 3: BEGIN transaction ─────────────────────────────────────────────
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin transaction"})
@@ -271,9 +235,6 @@ func DispenseMedicines(c *gin.Context) {
 		}
 	}()
 
-	// ── STEP 4: Insert into Dispensing for each medicine ─────────────────────
-	// trg_dispensing_before  → validates expiry + stock
-	// trg_dispensing_after_insert → deducts stock automatically
 	var dispensingIDs []int
 	for _, m := range medicines {
 		var dispensingID int
@@ -284,7 +245,7 @@ func DispenseMedicines(c *gin.Context) {
 			m.MedicineID, req.PharmacistID, req.PrescriptionID, m.Quantity,
 		).Scan(&dispensingID)
 		if err != nil {
-			// DB trigger may have fired with a detailed error message
+
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error":   "Dispensing failed for '" + m.Name + "' — transaction rolled back",
 				"details": err.Error(),
@@ -294,7 +255,6 @@ func DispenseMedicines(c *gin.Context) {
 		dispensingIDs = append(dispensingIDs, dispensingID)
 	}
 
-	// ── STEP 5: COMMIT ────────────────────────────────────────────────────────
 	if err = tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return
@@ -309,8 +269,6 @@ func DispenseMedicines(c *gin.Context) {
 		"medicines_count": len(medicines),
 	})
 }
-
-// ─── HELPER ──────────────────────────────────────────────────────────────────
 
 func itoa(n int) string {
 	return fmt.Sprintf("%d", n)

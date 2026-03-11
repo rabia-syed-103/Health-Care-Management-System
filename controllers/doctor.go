@@ -8,10 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ─── VIEW MY APPOINTMENTS / SCHEDULE ─────────────────────────────────────────
-// Doctor sees only their own appointments using their doctor_id from JWT token
+//VIEW MY APPOINTMENTS / SCHEDULE
+
 func GetMyAppointments(c *gin.Context) {
-	// Get doctor_id from JWT token set by AuthMiddleware
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -85,16 +84,12 @@ func GetMyAppointments(c *gin.Context) {
 	})
 }
 
-// ─── VIEW PATIENT HISTORY ─────────────────────────────────────────────────────
-// Doctor looks up a patient by email and sees all their:
-//   - Basic info
-//   - All appointments (with any doctor)
-//   - All prescriptions + medicines prescribed
+// VIEW PATIENT HISTORY
+
 func GetPatientHistory(c *gin.Context) {
 	email := c.Param("email")
 	ctx := context.Background()
 
-	// ── Fetch patient basic info ──────────────────────────────────────────────
 	var patient struct {
 		ID    int    `json:"id"`
 		Name  string `json:"name"`
@@ -109,7 +104,6 @@ func GetPatientHistory(c *gin.Context) {
 		return
 	}
 
-	// ── Fetch all appointments for this patient ───────────────────────────────
 	type AppointmentRow struct {
 		ID         int    `json:"id"`
 		Date       string `json:"date"`
@@ -155,7 +149,6 @@ func GetPatientHistory(c *gin.Context) {
 		appointments = []AppointmentRow{}
 	}
 
-	// ── Fetch all prescriptions + medicines for this patient ──────────────────
 	type MedicineRow struct {
 		MedicineName string `json:"medicine_name"`
 		Quantity     int    `json:"quantity"`
@@ -195,7 +188,6 @@ func GetPatientHistory(c *gin.Context) {
 			return
 		}
 
-		// Fetch medicines for this prescription
 		medRows, err := db.Pool.Query(ctx,
 			`SELECT m.name, pm.quantity
 			 FROM   prescription_medicine pm

@@ -12,8 +12,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// ─── REQUEST STRUCTS ─────────────────────────────────
-
 type RegisterRequest struct {
 	Name           string `json:"name"`
 	Email          string `json:"email"`
@@ -29,8 +27,6 @@ type LoginRequest struct {
 	Role     string `json:"role"`
 }
 
-// ─── HELPER: GENERATE JWT ────────────────────────────
-
 func generateToken(userID int, role string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
@@ -41,8 +37,7 @@ func generateToken(userID int, role string) (string, error) {
 	return token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 }
 
-// ─── REGISTER ────────────────────────────────────────
-
+// REGISTER
 func Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -50,7 +45,6 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// Validate required fields
 	if req.Name == "" || req.Email == "" || req.Password == "" || req.Role == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "name, email, password, and role are required"})
 		return
@@ -74,8 +68,7 @@ func Register(c *gin.Context) {
 
 	switch req.Role {
 	case "admin":
-		// Admin has no p_no in your schema — only id, name, email, p_no, password
-		// BUT your schema DOES have p_no on admin, so include it
+
 		err = db.Pool.QueryRow(context.Background(),
 			`INSERT INTO admin (name, email, p_no, password) VALUES ($1, $2, $3, $4) RETURNING id`,
 			req.Name, req.Email, req.PNo, string(hashedPassword),
@@ -129,7 +122,7 @@ func Register(c *gin.Context) {
 	})
 }
 
-// ─── LOGIN ───────────────────────────────────────────
+//LOGIN
 
 func Login(c *gin.Context) {
 	var req LoginRequest

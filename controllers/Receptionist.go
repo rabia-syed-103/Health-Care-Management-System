@@ -8,8 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ─── STRUCTS ──────────────────────────────────────────────────────────────────
-
 type AddERPatientEntryRequest struct {
 	ERPatientID int    `json:"er_patient_id" binding:"required"`
 	DoctorID    int    `json:"doctor_id"     binding:"required"`
@@ -24,7 +22,6 @@ type AddERPatientRequest struct {
 	ArrivalTime string `json:"arrival_time" binding:"required"`
 }
 
-// ─── VIEW ALL APPOINTMENTS ────────────────────────────────────────────────────
 func GetAllAppointments(c *gin.Context) {
 	ctx := context.Background()
 
@@ -89,7 +86,6 @@ func GetAllAppointments(c *gin.Context) {
 	})
 }
 
-// ─── VIEW ALL ER PATIENTS ─────────────────────────────────────────────────────
 func GetAllERPatients(c *gin.Context) {
 	ctx := context.Background()
 
@@ -134,7 +130,6 @@ func GetAllERPatients(c *gin.Context) {
 	})
 }
 
-// ─── ADD ER PATIENT ───────────────────────────────────────────────────────────
 func AddERPatient(c *gin.Context) {
 	var req AddERPatientRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -164,7 +159,6 @@ func AddERPatient(c *gin.Context) {
 	})
 }
 
-// ─── ADD ER PATIENT ENTRY ─────────────────────────────────────────────────────
 func AddERPatientEntry(c *gin.Context) {
 	var req AddERPatientEntryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -178,7 +172,6 @@ func AddERPatientEntry(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// Verify ER patient exists
 	var patientName string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM er_patient WHERE id = $1`, req.ERPatientID,
@@ -187,7 +180,6 @@ func AddERPatientEntry(c *gin.Context) {
 		return
 	}
 
-	// Verify doctor exists
 	var doctorName string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM doctor WHERE id = $1`, req.DoctorID,
@@ -196,7 +188,6 @@ func AddERPatientEntry(c *gin.Context) {
 		return
 	}
 
-	// Verify ER shift exists
 	var shiftDate, shiftTime string
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT date::text, time::text FROM er_shift WHERE id = $1`, req.ERID,
@@ -205,7 +196,6 @@ func AddERPatientEntry(c *gin.Context) {
 		return
 	}
 
-	// Verify doctor is assigned to this shift
 	var assignedCount int
 	if err := db.Pool.QueryRow(ctx,
 		`SELECT COUNT(*) FROM er_shift_doctor
@@ -218,7 +208,6 @@ func AddERPatientEntry(c *gin.Context) {
 		return
 	}
 
-	// Insert entry
 	var entryID int
 	err := db.Pool.QueryRow(ctx,
 		`INSERT INTO er_patient_entry (er_patient_id, doctor_id, er_id, status)
@@ -241,7 +230,6 @@ func AddERPatientEntry(c *gin.Context) {
 	})
 }
 
-// ─── VIEW ALL ER PATIENT ENTRIES ──────────────────────────────────────────────
 func GetAllERPatientEntries(c *gin.Context) {
 	ctx := context.Background()
 
