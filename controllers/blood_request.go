@@ -11,9 +11,9 @@ import (
 )
 
 type CreateBloodRequestRequest struct {
-	DoctorID       int `json:"doctor_id"       binding:"required"`
-	PatientID      int `json:"patient_id"      binding:"required"`
-	QuantityNeeded int `json:"quantity_needed" binding:"required,min=1"`
+	DoctorID       int    `json:"doctor_id"       binding:"required"`
+	PatientEmail   string `json:"patient_email"   binding:"required"`
+	QuantityNeeded int    `json:"quantity_needed" binding:"required,min=1"`
 }
 
 type FulfillBloodRequestRequest struct {
@@ -38,10 +38,11 @@ func CreateBloodRequest(c *gin.Context) {
 		return
 	}
 
+	var patientID int
 	var patientName, patientBloodGroup string
 	if err := db.Pool.QueryRow(ctx,
-		`SELECT name, b_gr FROM patient WHERE id = $1`, req.PatientID,
-	).Scan(&patientName, &patientBloodGroup); err != nil {
+		`SELECT id, name, TRIM(b_gr) FROM patient WHERE email = $1`, req.PatientEmail,
+	).Scan(&patientID, &patientName, &patientBloodGroup); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Patient not found"})
 		return
 	}
@@ -60,8 +61,8 @@ func CreateBloodRequest(c *gin.Context) {
 	var existingCount int
 	if err := tx.QueryRow(ctx,
 		`SELECT COUNT(*) FROM blood_request
-		 WHERE  patient_id = $1 AND status = 'pending'`,
-		req.PatientID,
+			WHERE  patient_id = $1 AND status = 'pending'`,
+		patientID,
 	).Scan(&existingCount); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing requests — transaction rolled back"})
 		return
@@ -80,9 +81,9 @@ func CreateBloodRequest(c *gin.Context) {
 	var requestID int
 	if err := tx.QueryRow(ctx,
 		`INSERT INTO blood_request (doctor_id, patient_id, quantity_needed, status, request_date)
-		 VALUES ($1, $2, $3, 'pending', $4)
-		 RETURNING id`,
-		req.DoctorID, req.PatientID, req.QuantityNeeded, today,
+		VALUES ($1, $2, $3, 'pending', $4)
+		RETURNING id`,
+		req.DoctorID, patientID, req.QuantityNeeded, today,
 	).Scan(&requestID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to create blood request — transaction rolled back",
@@ -131,10 +132,10 @@ func FulfillBloodRequest(c *gin.Context) {
 	var requestStatus string
 
 	if err := db.Pool.QueryRow(ctx,
-		`SELECT p.name, p.b_gr, br.quantity_needed, br.status
-		 FROM   blood_request br
-		 JOIN   patient p ON p.id = br.patient_id
-		 WHERE  br.id = $1`,
+		`SELECT p.name, TRIM(p.b_gr), br.quantity_needed, br.status
+			FROM   blood_request br
+			JOIN   patient p ON p.id = br.patient_id
+			WHERE  br.id = $1`,
 		req.RequestID,
 	).Scan(&patientName, &patientBloodGroup, &quantityNeeded, &requestStatus); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Blood request not found"})

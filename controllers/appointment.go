@@ -10,15 +10,15 @@ import (
 )
 
 type BookAppointmentRequest struct {
-	PatientID      int    `json:"patient_id"      binding:"required"`
+	PatientEmail   string `json:"patient_email"   binding:"required"`
 	DoctorID       int    `json:"doctor_id"       binding:"required"`
 	ReceptionistID int    `json:"receptionist_id" binding:"required"`
-	Date           string `json:"date"            binding:"required"` // "YYYY-MM-DD"
-	Time           string `json:"time"            binding:"required"` // "HH:MM"
+	Date           string `json:"date"            binding:"required"`
+	Time           string `json:"time"            binding:"required"`
 }
 
 type BookOTAppointmentRequest struct {
-	PatientID      int    `json:"patient_id"      binding:"required"`
+	PatientEmail   string `json:"patient_email"   binding:"required"`
 	DoctorID       int    `json:"doctor_id"       binding:"required"`
 	ReceptionistID int    `json:"receptionist_id" binding:"required"`
 	Date           string `json:"date"            binding:"required"`
@@ -34,10 +34,11 @@ func BookAppointment(c *gin.Context) {
 
 	ctx := context.Background()
 
+	var patientID int
 	var patientName string
 	if err := db.Pool.QueryRow(ctx,
-		`SELECT name FROM patient WHERE id = $1`, req.PatientID,
-	).Scan(&patientName); err != nil {
+		`SELECT id, name FROM patient WHERE email = $1`, req.PatientEmail,
+	).Scan(&patientID, &patientName); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Patient not found"})
 		return
 	}
@@ -96,9 +97,9 @@ func BookAppointment(c *gin.Context) {
 	var appointmentID int
 	if err := tx.QueryRow(ctx,
 		`INSERT INTO appointment (receptionist_id, patient_id, doctor_id, date, time, status, ot_id)
-		 VALUES ($1, $2, $3, $4, $5, 'pending', NULL)
+	     VALUES ($1, $2, $3, $4, $5, 'pending', NULL)
 		 RETURNING id`,
-		req.ReceptionistID, req.PatientID, req.DoctorID, req.Date, req.Time,
+		req.ReceptionistID, patientID, req.DoctorID, req.Date, req.Time,
 	).Scan(&appointmentID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to create appointment — transaction rolled back",
@@ -135,10 +136,11 @@ func BookOTAppointment(c *gin.Context) {
 
 	ctx := context.Background()
 
+	var patientID int
 	var patientName string
 	if err := db.Pool.QueryRow(ctx,
-		`SELECT name FROM patient WHERE id = $1`, req.PatientID,
-	).Scan(&patientName); err != nil {
+		`SELECT id, name FROM patient WHERE email = $1`, req.PatientEmail,
+	).Scan(&patientID, &patientName); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Patient not found"})
 		return
 	}
@@ -226,7 +228,7 @@ func BookOTAppointment(c *gin.Context) {
 		`INSERT INTO appointment (receptionist_id, patient_id, doctor_id, date, time, status, ot_id)
 		 VALUES ($1, $2, $3, $4, $5, 'pending', $6)
 		 RETURNING id`,
-		req.ReceptionistID, req.PatientID, req.DoctorID, req.Date, req.Time, otID,
+		req.ReceptionistID, patientID, req.DoctorID, req.Date, req.Time, otID,
 	).Scan(&appointmentID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to create OT appointment — transaction rolled back",
@@ -261,5 +263,67 @@ func BookOTAppointment(c *gin.Context) {
 		"receptionist":   receptionistName,
 		"date":           req.Date,
 		"time":           req.Time,
+	})
+}
+
+type GetAvailableDoctorsRequest struct {
+	Date string `json:"date" binding:"required"`
+	Time string `json:"time" binding:"required"`
+}
+
+func GetAvailableDoctors(c *gin.Context) {
+	var req GetAvailableDoctorsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+
+	rows, err := db.Pool.Query(ctx,
+		`SELECT id, name, specialization, p_no, email
+		 FROM   doctor
+		 WHERE  id NOT IN (
+		            SELECT doctor_id FROM appointment
+		            WHERE  date   = $1
+		              AND  time   = $2
+		              AND  status = 'pending'
+		        )
+		 ORDER BY name ASC`,
+		req.Date, req.Time,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch available doctors: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	type Doctor struct {
+		ID             int    `json:"id"`
+		Name           string `json:"name"`
+		Specialization string `json:"specialization"`
+		PNo            string `json:"p_no"`
+		Email          string `json:"email"`
+	}
+
+	var doctors []Doctor
+	for rows.Next() {
+		var d Doctor
+		if err := rows.Scan(&d.ID, &d.Name, &d.Specialization, &d.PNo, &d.Email); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read doctor data: " + err.Error()})
+			return
+		}
+		doctors = append(doctors, d)
+	}
+
+	if doctors == nil {
+		doctors = []Doctor{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"available_doctors": doctors,
+		"count":             len(doctors),
+		"date":              req.Date,
+		"time":              req.Time,
 	})
 }

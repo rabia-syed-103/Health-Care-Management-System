@@ -85,7 +85,7 @@ func SetupRoutes(r *gin.Engine) {
 		receptionist.Use(middleware.RequireRole("receptionist", "admin"))
 		{
 			receptionist.GET("/appointments", controllers.GetAllAppointments)
-
+			appointments.POST("/available-doctors", controllers.GetAvailableDoctors)
 			receptionist.GET("/er-patients", controllers.GetAllERPatients)
 			receptionist.POST("/er-patients", controllers.AddERPatient)
 

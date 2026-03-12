@@ -11,14 +11,13 @@ import (
 )
 
 type PrescriptionMedicineItem struct {
-	MedicineID int `json:"medicine_id" binding:"required"`
-	Quantity   int `json:"quantity"    binding:"required,min=1"`
+	MedicineName string `json:"medicine_name" binding:"required"`
+	Quantity     int    `json:"quantity"      binding:"required,min=1"`
 }
-
 type PrescribeMedicinesRequest struct {
-	DoctorID  int                        `json:"doctor_id"   binding:"required"`
-	PatientID int                        `json:"patient_id"  binding:"required"`
-	Medicines []PrescriptionMedicineItem `json:"medicines"   binding:"required,min=1"`
+	DoctorEmail  string                     `json:"doctor_email"  binding:"required"`
+	PatientEmail string                     `json:"patient_email" binding:"required"`
+	Medicines    []PrescriptionMedicineItem `json:"medicines"     binding:"required,min=1"`
 }
 
 type DispenseMedicinesRequest struct {
@@ -35,35 +34,34 @@ func PrescribeMedicines(c *gin.Context) {
 
 	ctx := context.Background()
 
+	var patientID int
 	var patientName string
-	err := db.Pool.QueryRow(ctx,
-		`SELECT name FROM patient WHERE id = $1`, req.PatientID,
-	).Scan(&patientName)
-	if err != nil {
+	if err := db.Pool.QueryRow(ctx,
+		`SELECT id, name FROM patient WHERE email = $1`, req.PatientEmail,
+	).Scan(&patientID, &patientName); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Patient not found"})
 		return
 	}
 
+	var doctorID int
 	var doctorName string
-	err = db.Pool.QueryRow(ctx,
-		`SELECT name FROM doctor WHERE id = $1`, req.DoctorID,
-	).Scan(&doctorName)
-	if err != nil {
+	if err := db.Pool.QueryRow(ctx,
+		`SELECT id, name FROM doctor WHERE email = $1`, req.DoctorEmail,
+	).Scan(&doctorID, &doctorName); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Doctor not found"})
 		return
 	}
 
 	var appointmentID int
-	err = db.Pool.QueryRow(ctx,
+	if err := db.Pool.QueryRow(ctx,
 		`SELECT id FROM appointment
 		 WHERE  patient_id = $1
 		   AND  doctor_id  = $2
 		   AND  status     IN ('pending', 'completed')
 		 ORDER BY date DESC, time DESC
 		 LIMIT 1`,
-		req.PatientID, req.DoctorID,
-	).Scan(&appointmentID)
-	if err != nil {
+		patientID, doctorID,
+	).Scan(&appointmentID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "No valid appointment found for this patient with the specified doctor",
 		})
@@ -75,7 +73,6 @@ func PrescribeMedicines(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin transaction"})
 		return
 	}
-
 	defer func() {
 		if tx != nil {
 			tx.Rollback(ctx)
@@ -85,14 +82,12 @@ func PrescribeMedicines(c *gin.Context) {
 	var prescriptionID int
 	today := time.Now().Format("2006-01-02")
 
-	err = tx.QueryRow(ctx,
+	if err := tx.QueryRow(ctx,
 		`INSERT INTO prescription (doctor_id, patient_id, date)
 		 VALUES ($1, $2, $3)
 		 RETURNING id`,
-		req.DoctorID, req.PatientID, today,
-	).Scan(&prescriptionID)
-	if err != nil {
-
+		doctorID, patientID, today,
+	).Scan(&prescriptionID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to create prescription — transaction rolled back",
 			"details": err.Error(),
@@ -101,34 +96,31 @@ func PrescribeMedicines(c *gin.Context) {
 	}
 
 	for _, med := range req.Medicines {
-
-		var medicineName string
+		var medicineID int
 		var expiryDate time.Time
 		var stock int
-		err = tx.QueryRow(ctx,
-			`SELECT name, expiry_date, stock FROM medicine WHERE id = $1`,
-			med.MedicineID,
-		).Scan(&medicineName, &expiryDate, &stock)
-		if err != nil {
+		if err := tx.QueryRow(ctx,
+			`SELECT id, expiry_date, stock FROM medicine WHERE LOWER(name) = LOWER($1) LIMIT 1`,
+			med.MedicineName,
+		).Scan(&medicineID, &expiryDate, &stock); err != nil {
 			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Medicine ID " + itoa(med.MedicineID) + " not found — transaction rolled back",
+				"error": "Medicine '" + med.MedicineName + "' not found — transaction rolled back",
 			})
 			return
 		}
 
 		if expiryDate.Before(time.Now()) {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Medicine '" + medicineName + "' (ID: " + itoa(med.MedicineID) + ") is expired — transaction rolled back",
+				"error": "Medicine '" + med.MedicineName + "' is expired — transaction rolled back",
 			})
 			return
 		}
 
-		_, err = tx.Exec(ctx,
+		if _, err := tx.Exec(ctx,
 			`INSERT INTO prescription_medicine (prescription_id, medicine_id, quantity)
 			 VALUES ($1, $2, $3)`,
-			prescriptionID, med.MedicineID, med.Quantity,
-		)
-		if err != nil {
+			prescriptionID, medicineID, med.Quantity,
+		); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error":   "Failed to add medicine to prescription — transaction rolled back",
 				"details": err.Error(),
@@ -137,7 +129,7 @@ func PrescribeMedicines(c *gin.Context) {
 		}
 	}
 
-	if err = tx.Commit(ctx); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return
 	}

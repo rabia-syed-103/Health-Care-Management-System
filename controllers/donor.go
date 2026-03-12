@@ -56,7 +56,7 @@ func AddDonor(c *gin.Context) {
 func GetAllDonors(c *gin.Context) {
 	ctx := context.Background()
 	rows, err := db.Pool.Query(ctx,
-		`SELECT id, name, p_no, email, b_gr, last_donate FROM donor ORDER BY id`)
+		`SELECT id, name, p_no, email, b_gr, last_donate::text FROM donor ORDER BY id`)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch donors"})
 		return
@@ -106,7 +106,7 @@ func GetDonor(c *gin.Context) {
 	}
 
 	err := db.Pool.QueryRow(ctx,
-		`SELECT id, name, p_no, email, b_gr, last_donate FROM donor WHERE email = $1`, email,
+		`SELECT id, name, p_no, email, b_gr, last_donate::text FROM donor WHERE email = $1`, email,
 	).Scan(&donor.ID, &donor.Name, &donor.PNo, &donor.Email, &donor.BGr, &donor.LastDonate)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Donor not found"})

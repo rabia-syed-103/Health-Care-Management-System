@@ -11,8 +11,8 @@ import (
 )
 
 type BloodDonationRequest struct {
-	DonorID   int `json:"donor_id"   binding:"required"`
-	ManagerID int `json:"manager_id" binding:"required"`
+	DonorEmail string `json:"donor_email" binding:"required"`
+	ManagerID  int    `json:"manager_id"  binding:"required"`
 }
 
 // TRANSACTION 3 — BLOOD DONATION
@@ -35,13 +35,14 @@ func RecordBloodDonation(c *gin.Context) {
 		return
 	}
 
+	var donorID int
 	var donorName string
 	var bloodGroup string
 	var lastDonate time.Time
 
 	if err := db.Pool.QueryRow(ctx,
-		`SELECT name, b_gr, last_donate FROM donor WHERE id = $1`, req.DonorID,
-	).Scan(&donorName, &bloodGroup, &lastDonate); err != nil {
+		`SELECT id, name, b_gr, last_donate FROM donor WHERE email = $1`, req.DonorEmail,
+	).Scan(&donorID, &donorName, &bloodGroup, &lastDonate); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Donor not found"})
 		return
 	}
@@ -74,7 +75,7 @@ func RecordBloodDonation(c *gin.Context) {
 
 	var lockedDonorID int
 	if err := tx.QueryRow(ctx,
-		`SELECT id FROM donor WHERE id = $1 FOR UPDATE`, req.DonorID,
+		`SELECT id FROM donor WHERE id = $1 FOR UPDATE`, donorID,
 	).Scan(&lockedDonorID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to lock donor record — transaction rolled back",
@@ -84,7 +85,7 @@ func RecordBloodDonation(c *gin.Context) {
 
 	var freshLastDonate time.Time
 	if err := tx.QueryRow(ctx,
-		`SELECT last_donate FROM donor WHERE id = $1`, req.DonorID,
+		`SELECT last_donate FROM donor WHERE id = $1`, donorID,
 	).Scan(&freshLastDonate); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to re-verify donor — transaction rolled back"})
 		return
@@ -107,9 +108,9 @@ func RecordBloodDonation(c *gin.Context) {
 	var bloodID int
 	if err := tx.QueryRow(ctx,
 		`INSERT INTO blood (b_gr, collected_date, status, expiry_date, unit, donor_id)
-		 VALUES ($1, $2, 'available', $3, 0, $4)
-		 RETURNING id`,
-		bloodGroup, today, expiryDate, req.DonorID,
+		VALUES ($1, $2, 'available', $3, 0, $4)
+		RETURNING id`,
+		bloodGroup, today, expiryDate, donorID,
 	).Scan(&bloodID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to create blood inventory entry — transaction rolled back",
@@ -123,7 +124,7 @@ func RecordBloodDonation(c *gin.Context) {
 		`INSERT INTO donation (donor_id, manager_id, blood_id, donation_date, status)
 		 VALUES ($1, $2, $3, $4, 'completed')
 		 RETURNING id`,
-		req.DonorID, req.ManagerID, bloodID, today,
+		donorID, req.ManagerID, bloodID, today,
 	).Scan(&donationID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to record donation — transaction rolled back",

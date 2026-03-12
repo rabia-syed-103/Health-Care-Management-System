@@ -214,11 +214,12 @@ components:
 
     AppointmentRequest:
       type: object
-      required: [patient_id, doctor_id, receptionist_id, date, time]
+      required: [patient_email, doctor_id, receptionist_id, date, time]
       properties:
-        patient_id:
-          type: integer
-          example: 1
+        patient_email:
+          type: string
+          format: email
+          example: "john@patient.com"
         doctor_id:
           type: integer
           example: 2
@@ -250,26 +251,23 @@ components:
           example: "None"
 
     PrescriptionMedicine:
-      type: object
-      required: [medicine_id, quantity]
+      required: [medicine_name, quantity]
       properties:
-        medicine_id:
-          type: integer
-          example: 1
-        quantity:
-          type: integer
-          example: 2
+        medicine_name:
+          type: string
+          example: "Paracetamol"
 
     PrescriptionRequest:
-      type: object
-      required: [doctor_id, patient_id, medicines]
+      required: [doctor_email, patient_email, medicines]
       properties:
-        doctor_id:
-          type: integer
-          example: 1
-        patient_id:
-          type: integer
-          example: 1
+        doctor_email:
+          type: string
+          format: email
+          example: "ali@hospital.com"
+        patient_email:
+          type: string
+          format: email
+          example: "john@patient.com"
         medicines:
           type: array
           items:
@@ -322,12 +320,12 @@ components:
           example: 2
 
     BloodDonationRequest:
-      type: object
-      required: [donor_id, manager_id]
+      required: [donor_email, manager_id]
       properties:
-        donor_id:
-          type: integer
-          example: 1
+        donor_email:
+          type: string
+          format: email
+          example: "ahmed@donor.com"
         manager_id:
           type: integer
           example: 1
@@ -358,13 +356,13 @@ components:
           example: 1
 
     BloodRequestCreate:
-      type: object
-      required: [doctor_id, patient_id, quantity_needed]
+      required: [doctor_id, patient_email, quantity_needed]
       properties:
+        patient_email:
+          type: string
+          format: email
+          example: "john@patient.com"
         doctor_id:
-          type: integer
-          example: 1
-        patient_id:
           type: integer
           example: 1
         quantity_needed:
@@ -1607,24 +1605,24 @@ paths:
         '404':
           description: Pharmacist not found
   /pharmacist/medicine/{name}:
-  get:
-    tags: [Pharmacist Dashboard]
-    summary: Search medicine by name
-    description: "**Allowed roles:** pharmacist, admin. Case-insensitive. Returns all batches matching the name."
-    security:
-      - BearerAuth: []
-    parameters:
-      - name: name
-        in: path
-        required: true
-        schema:
-          type: string
-        example: Paracetamol
-    responses:
-      '200':
-        description: List of matching medicine batches
-      '404':
-        description: No medicine found with that name
+    get:
+      tags: [Pharmacist Dashboard]
+      summary: Search medicine by name
+      description: "**Allowed roles:** pharmacist, admin. Case-insensitive. Returns all batches matching the name."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          example: Paracetamol
+      responses:
+        '200':
+          description: List of matching medicine batches
+        '404':
+          description: No medicine found with that name
 
   /admin/blood-managers:
     get:
@@ -1690,5 +1688,43 @@ paths:
           description: Blood manager deleted
         '404':
           description: Blood manager not found
+
+  /appointments/available-doctors:
+    post:
+      tags: [Appointments]
+      summary: Get available doctors for a date and time
+      description: "**Allowed roles:** receptionist, admin. Returns all doctors with no pending appointment at the given slot."
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, time]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  example: "2026-04-01"
+                time:
+                  type: string
+                  example: "10:00"
+      responses:
+        '200':
+          description: List of available doctors
+          content:
+            application/json:
+              example:
+                available_doctors:
+                  - id: 1
+                    name: "Dr. Ali Hassan"
+                    specialization: "Cardiology"
+                    p_no: "03001234567"
+                    email: "ali@hospital.com"
+                count: 1
+                date: "2026-04-01"
+                time: "10:00"
 
   
