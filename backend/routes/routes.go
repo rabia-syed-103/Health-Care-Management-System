@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"hospital-backend/controllers"
-	"hospital-backend/middleware"
+	"hospital-management/controllers"
+	"hospital-management/middleware"
 
 	"github.com/gin-gonic/gin"
 )

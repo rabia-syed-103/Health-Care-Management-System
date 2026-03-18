@@ -3,7 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"hospital-backend/db"
+	"hospital-management/db"
 	"net/http"
 	"time"
 

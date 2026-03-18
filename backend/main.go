@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hospital-backend/db"
-	"hospital-backend/routes"
+	"hospital-management/db"
+	"hospital-management/routes"
 	"log"
 	"os"
 

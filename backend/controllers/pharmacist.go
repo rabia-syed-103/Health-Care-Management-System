@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"hospital-backend/db"
+	"hospital-management/db"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
