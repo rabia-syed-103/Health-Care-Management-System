@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react'
 import { getMyAppointments } from '../../api/doctor'
 import PageHeader from '../../components/PageHeader'
@@ -16,6 +17,7 @@ export default function DoctorDashboard() {
       try {
         const res = await getMyAppointments()
         setAppointments(res.data.appointments || [])
+        console.log('DATA:', res.data.appointments)
       } catch { setAppointments([]) }
       finally { setLoading(false) }
     }
@@ -26,21 +28,20 @@ export default function DoctorDashboard() {
   const completed = appointments.filter(a => a.status === 'completed').length
   const withOT    = appointments.filter(a => a.ot && a.ot !== 'None').length
 
-  const columns = [
-    { key: 'patient_name', label: 'Patient' },
-    { key: 'blood_group',  label: 'Blood Group' },
-    { key: 'p_no',         label: 'Phone' },
-    { key: 'date',         label: 'Date' },
-    { key: 'time',         label: 'Time' },
-    { key: 'status', label: 'Status', render: (row) => (
-      <span className={row.status === 'pending' ? 'badge-warning' : 'badge-success'}>
-        {row.status}
-      </span>
-    )},
-    { key: 'ot', label: 'OT', render: (row) => (
-      <span>{row.ot && row.ot !== 'None' ? `OT #${row.ot}` : '—'}</span>
-    )},
-  ]
+const columns = [
+  { key: 'patient_name',       label: 'Patient' },
+  { key: 'patient_email',      label: 'Email' },
+  { key: 'patient_phone',      label: 'Phone',      render: (row) => row.patient_phone || '—' },
+  { key: 'patient_blood_group',label: 'Blood Group', render: (row) => <span className="badge-info">{row.patient_blood_group?.trim()}</span> },
+  { key: 'date',               label: 'Date' },
+  { key: 'time',               label: 'Time' },
+  { key: 'status', label: 'Status', render: (row) => (
+    <span className={row.status === 'pending' ? 'badge-warning' : 'badge-success'}>
+      {row.status}
+    </span>
+  )},
+  { key: 'ot_id', label: 'OT', render: (row) => row.ot_id === 'None' ? '—' : row.ot_id },
+]
 
   if (loading) return <LoadingSpinner />
 
@@ -64,3 +65,5 @@ export default function DoctorDashboard() {
     </div>
   )
 }
+
+
