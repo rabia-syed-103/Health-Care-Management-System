@@ -92,12 +92,16 @@ func SetupRoutes(r *gin.Engine) {
 			receptionist.GET("/er-entries", controllers.GetAllERPatientEntries)
 			receptionist.POST("/er-entries", controllers.AddERPatientEntry)
 		}
+		cancelAppt := protected.Group("/appointments")
+		cancelAppt.Use(middleware.RequireRole("doctor", "receptionist", "admin"))
+		{
+			cancelAppt.PUT("/:id/cancel", controllers.CancelAppointment)
+		}
 		doctor := protected.Group("/doctor")
 		doctor.Use(middleware.RequireRole("doctor", "admin"))
 		{
 
 			doctor.GET("/my-appointments", controllers.GetMyAppointments)
-
 			doctor.GET("/patient-history/:email", controllers.GetPatientHistory)
 		}
 		pharmacist := protected.Group("/pharmacist")

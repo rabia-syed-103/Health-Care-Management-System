@@ -53,7 +53,8 @@ export default function ReceptionistDashboard() {
   return (
     <div>
       <PageHeader
-        title={`Welcome, ${user?.name || 'Receptionist'}`}
+        title={`Welcome, ${user?.email || 'Receptionist'}`}
+        badge={user?.id ? `ID: ${user.id}` : null}
         subtitle="Hospital front desk overview"
       />
 

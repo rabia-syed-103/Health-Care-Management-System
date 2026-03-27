@@ -4,3 +4,4 @@ export const getAvailableDoctors  = (data) => api.post('/appointments/available-
 export const bookAppointment      = (data) => api.post('/appointments/book', data)
 export const bookOTAppointment    = (data) => api.post('/appointments/book-ot', data)
 export const getAllAppointments    = ()     => api.get('/receptionist/appointments')
+export const cancelAppointment = (id) => api.put(`/appointments/${id}/cancel`)

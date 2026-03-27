@@ -108,71 +108,137 @@ export default function ReceptionistAppointments() {
 
       <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />
       <Table columns={columns} data={appointments} emptyMessage="No appointments found" />
-
-      {(modal === 'regular' || modal === 'ot') && (
-        <Modal title={modal === 'ot' ? 'Book OT Appointment' : 'Book Appointment'} onClose={() => setModal(null)}>
-          {step === 1 ? (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">Step 1 — Select date and time to see available doctors</p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input type="date" className="input-field" value={slotForm.date} onChange={e => setSlotForm({...slotForm, date: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                <input type="time" className="input-field" value={slotForm.time} onChange={e => setSlotForm({...slotForm, time: e.target.value})} />
-              </div>
-              <button onClick={handleGetDoctors} disabled={saving} className="btn-primary w-full">
-                {saving ? 'Checking...' : 'Check Available Doctors →'}
-              </button>
-            </div>
+{modal === 'regular' && (
+  <Modal title="Book Appointment" onClose={() => setModal(null)}>
+    {step === 1 ? (
+      <div className="space-y-4">
+        <p className="text-sm text-gray-500">Step 1 — Select date and time to see available doctors</p>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+          <input type="date" className="input-field" value={slotForm.date} onChange={e => setSlotForm({...slotForm, date: e.target.value})} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+          <input type="time" className="input-field" value={slotForm.time} onChange={e => setSlotForm({...slotForm, time: e.target.value})} />
+        </div>
+        <button onClick={handleGetDoctors} disabled={saving} className="btn-primary w-full">
+          {saving ? 'Checking...' : 'Check Available Doctors →'}
+        </button>
+      </div>
+    ) : (
+      <div className="space-y-4">
+        <p className="text-sm text-gray-500">Step 2 — Select a doctor and enter patient details</p>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Patient Email</label>
+          <input className="input-field" value={bookForm.patient_email} onChange={e => setBookForm({...bookForm, patient_email: e.target.value})} placeholder="patient@email.com" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Available Doctors — {slotForm.date} at {slotForm.time}
+          </label>
+          {availableDoctors.length === 0 ? (
+            <p className="text-red-500 text-sm">No doctors available at this slot</p>
           ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">Step 2 — Select a doctor and enter patient details</p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Patient Email</label>
-                <input className="input-field" value={bookForm.patient_email} onChange={e => setBookForm({...bookForm, patient_email: e.target.value})} placeholder="patient@email.com" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Available Doctors — {slotForm.date} at {slotForm.time}
-                </label>
-                {availableDoctors.length === 0 ? (
-                  <p className="text-red-500 text-sm">No doctors available at this slot</p>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {availableDoctors.map(doc => (
-                      <label key={doc.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${bookForm.doctor_id == doc.id ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                        <input
-                          type="radio"
-                          name="doctor"
-                          value={doc.id}
-                          checked={bookForm.doctor_id == doc.id}
-                          onChange={e => setBookForm({...bookForm, doctor_id: e.target.value})}
-                        />
-                        <div>
-                          <p className="font-medium text-sm">{doc.name}</p>
-                          <p className="text-xs text-gray-500">{doc.specialization} • {doc.email}</p>
-                        </div>
-                      </label>
-                    ))}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {availableDoctors.map(doc => (
+                <label key={doc.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${bookForm.doctor_id == doc.id ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                  <input
+                    type="radio"
+                    name="doctor"
+                    value={doc.id}
+                    checked={bookForm.doctor_id == doc.id}
+                    onChange={e => setBookForm({...bookForm, doctor_id: e.target.value})}
+                  />
+                  <div>
+                    <p className="font-medium text-sm">{doc.name}</p>
+                    <p className="text-xs text-gray-500">{doc.specialization} • {doc.email}</p>
                   </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Receptionist ID</label>
-                <input type="number" className="input-field" value={bookForm.receptionist_id} onChange={e => setBookForm({...bookForm, receptionist_id: e.target.value})} />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setStep(1)} className="btn-secondary flex-1">← Back</button>
-                <button onClick={handleBook} disabled={saving || availableDoctors.length === 0} className="btn-primary flex-1">
-                  {saving ? 'Booking...' : 'Confirm Booking'}
-                </button>
-              </div>
+                </label>
+              ))}
             </div>
           )}
-        </Modal>
-      )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Receptionist ID</label>
+          <input type="number" className="input-field" value={bookForm.receptionist_id} onChange={e => setBookForm({...bookForm, receptionist_id: e.target.value})} />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button onClick={() => setStep(1)} className="btn-secondary flex-1">← Back</button>
+          <button onClick={handleBook} disabled={saving || availableDoctors.length === 0} className="btn-primary flex-1">
+            {saving ? 'Booking...' : 'Confirm Booking'}
+          </button>
+        </div>
+      </div>
+    )}
+  </Modal>
+)}
+
+{modal === 'ot' && (
+  <Modal title="Book OT Appointment" onClose={() => setModal(null)}>
+    <div className="space-y-4">
+      <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-700 border border-blue-200">
+        ℹ️ Book OT as requested by the doctor. The system will automatically assign an available OT room.
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Patient Email</label>
+        <input
+          className="input-field"
+          value={bookForm.patient_email}
+          onChange={e => setBookForm({...bookForm, patient_email: e.target.value})}
+          placeholder="patient@email.com"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Doctor ID</label>
+        <input
+          type="number"
+          className="input-field"
+          value={bookForm.doctor_id}
+          onChange={e => setBookForm({...bookForm, doctor_id: e.target.value})}
+          placeholder="Doctor who requested the OT"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Receptionist ID</label>
+        <input
+          type="number"
+          className="input-field"
+          value={bookForm.receptionist_id}
+          onChange={e => setBookForm({...bookForm, receptionist_id: e.target.value})}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+        <input
+          type="date"
+          className="input-field"
+          value={bookForm.date}
+          onChange={e => setBookForm({...bookForm, date: e.target.value})}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+        <input
+          type="time"
+          className="input-field"
+          value={bookForm.time}
+          onChange={e => setBookForm({...bookForm, time: e.target.value})}
+        />
+      </div>
+      <div className="flex gap-3 pt-2">
+        <button
+          onClick={handleBook}
+          disabled={saving}
+          className="btn-primary flex-1"
+        >
+          {saving ? 'Booking...' : 'Book OT Appointment'}
+        </button>
+        <button onClick={() => setModal(null)} className="btn-secondary flex-1">Cancel</button>
+      </div>
+    </div>
+  </Modal>
+)}
+      
     </div>
   )
 }

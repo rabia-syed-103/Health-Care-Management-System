@@ -60,7 +60,8 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <PageHeader title="Admin Dashboard" subtitle="Hospital overview and statistics" />
+      <PageHeader title="Admin Dashboard" subtitle="Hospital overview and statistics" 
+      badge={user?.id ? `ID: ${user.id}` : null}/>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         <StatCard title="Doctors"        value={stats.doctors}        color="blue"   />

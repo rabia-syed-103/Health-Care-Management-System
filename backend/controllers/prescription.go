@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"hospital-management/db"
 	"net/http"
 	"time"
@@ -144,7 +143,6 @@ func PrescribeMedicines(c *gin.Context) {
 		"medicines_count": len(req.Medicines),
 	})
 }
-
 func DispenseMedicines(c *gin.Context) {
 	var req DispenseMedicinesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -155,25 +153,21 @@ func DispenseMedicines(c *gin.Context) {
 	ctx := context.Background()
 
 	var pharmacistName string
-	err := db.Pool.QueryRow(ctx,
+	if err := db.Pool.QueryRow(ctx,
 		`SELECT name FROM pharmacist WHERE id = $1`, req.PharmacistID,
-	).Scan(&pharmacistName)
-	if err != nil {
+	).Scan(&pharmacistName); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Pharmacist not found"})
 		return
 	}
 
-	type MedRow struct {
-		PrescMedID int
-		MedicineID int
-		Name       string
-		Quantity   int
-		Stock      int
-		Expiry     time.Time
+	// Fetch prescribed medicines (name + quantity only) — outside tx is fine, read-only
+	type PrescMed struct {
+		Name     string
+		Quantity int
 	}
 
 	rows, err := db.Pool.Query(ctx,
-		`SELECT pm.id, pm.medicine_id, m.name, pm.quantity, m.stock, m.expiry_date
+		`SELECT m.name, pm.quantity
 		 FROM   prescription_medicine pm
 		 JOIN   medicine m ON m.id = pm.medicine_id
 		 WHERE  pm.prescription_id = $1`,
@@ -183,39 +177,25 @@ func DispenseMedicines(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch prescription medicines"})
 		return
 	}
-	defer rows.Close()
 
-	var medicines []MedRow
+	var prescMeds []PrescMed
 	for rows.Next() {
-		var m MedRow
-		if err := rows.Scan(&m.PrescMedID, &m.MedicineID, &m.Name, &m.Quantity, &m.Stock, &m.Expiry); err != nil {
+		var m PrescMed
+		if err := rows.Scan(&m.Name, &m.Quantity); err != nil {
+			rows.Close()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read medicine row"})
 			return
 		}
-		medicines = append(medicines, m)
+		prescMeds = append(prescMeds, m)
 	}
+	rows.Close() // close explicitly before starting the transaction
 
-	if len(medicines) == 0 {
+	if len(prescMeds) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Prescription not found or has no medicines"})
 		return
 	}
 
-	for _, m := range medicines {
-		if m.Expiry.Before(time.Now()) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Medicine '" + m.Name + "' is expired. Cannot dispense.",
-			})
-			return
-		}
-		if m.Stock < m.Quantity {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Insufficient stock for '" + m.Name + "'. Available: " +
-					itoa(m.Stock) + ", Needed: " + itoa(m.Quantity),
-			})
-			return
-		}
-	}
-
+	// Begin transaction — stock check + decrement + dispensing insert all happen inside
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin transaction"})
@@ -228,22 +208,41 @@ func DispenseMedicines(c *gin.Context) {
 	}()
 
 	var dispensingIDs []int
-	for _, m := range medicines {
+
+	for _, pm := range prescMeds {
+		// Lock the best non-expired batch with sufficient stock FOR UPDATE
+		var medicineID int
+		err := tx.QueryRow(ctx,
+			`SELECT id FROM medicine
+			 WHERE  LOWER(name) = LOWER($1)
+			   AND  expiry_date > CURRENT_DATE
+			   AND  stock >= $2
+			 ORDER BY expiry_date ASC
+			 LIMIT 1
+			 FOR UPDATE`,
+			pm.Name, pm.Quantity,
+		).Scan(&medicineID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Medicine '" + pm.Name + "' has no valid non-expired batch with sufficient stock.",
+			})
+			return
+		}
+
 		var dispensingID int
-		err = tx.QueryRow(ctx,
+		if err := tx.QueryRow(ctx,
 			`INSERT INTO dispensing (medicine_id, pharmacist_id, prescription_id, quantity)
 			 VALUES ($1, $2, $3, $4)
 			 RETURNING id`,
-			m.MedicineID, req.PharmacistID, req.PrescriptionID, m.Quantity,
-		).Scan(&dispensingID)
-		if err != nil {
-
+			medicineID, req.PharmacistID, req.PrescriptionID, pm.Quantity,
+		).Scan(&dispensingID); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   "Dispensing failed for '" + m.Name + "' — transaction rolled back",
+				"error":   "Dispensing failed for '" + pm.Name + "'",
 				"details": err.Error(),
 			})
 			return
 		}
+
 		dispensingIDs = append(dispensingIDs, dispensingID)
 	}
 
@@ -258,10 +257,6 @@ func DispenseMedicines(c *gin.Context) {
 		"prescription_id": req.PrescriptionID,
 		"pharmacist":      pharmacistName,
 		"dispensing_ids":  dispensingIDs,
-		"medicines_count": len(medicines),
+		"medicines_count": len(dispensingIDs),
 	})
-}
-
-func itoa(n int) string {
-	return fmt.Sprintf("%d", n)
 }

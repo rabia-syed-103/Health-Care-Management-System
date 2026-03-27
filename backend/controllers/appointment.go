@@ -327,3 +327,37 @@ func GetAvailableDoctors(c *gin.Context) {
 		"time":              req.Time,
 	})
 }
+
+func CancelAppointment(c *gin.Context) {
+	id := c.Param("id")
+	ctx := context.Background()
+
+	var currentStatus string
+	if err := db.Pool.QueryRow(ctx,
+		`SELECT status FROM appointment WHERE id = $1`, id,
+	).Scan(&currentStatus); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Appointment not found"})
+		return
+	}
+
+	if currentStatus != "pending" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Cannot cancel appointment with status '%s'. Only pending appointments can be cancelled.", currentStatus),
+		})
+		return
+	}
+
+	_, err := db.Pool.Exec(ctx,
+		`UPDATE appointment SET status = 'cancelled' WHERE id = $1`, id,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel appointment"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":        "Appointment cancelled successfully",
+		"appointment_id": id,
+		"status":         "cancelled",
+	})
+}

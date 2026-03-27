@@ -34,8 +34,9 @@ export default function Login() {
     setLoading(true)
     try {
       const res = await loginApi(form)
-      const { token, role, name, user_id } = res.data
-      login(token, role, { name, user_id, email: form.email })
+      console.log('LOGIN RESPONSE:', res.data)
+      const { token, role, id } = res.data
+      login(token, role, { id, email: form.email })
       navigate(roleRedirects[role] || '/')
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid credentials')

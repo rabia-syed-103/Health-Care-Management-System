@@ -28,7 +28,7 @@ export default function PharmacistStock() {
   useEffect(() => {
     let result = medicines
     if (search)       result = result.filter(m => m.name?.toLowerCase().includes(search.toLowerCase()) || m.batch_no?.toLowerCase().includes(search.toLowerCase()))
-    if (filterStatus) result = result.filter(m => m.status === filterStatus)
+    if (filterStatus) result = result.filter(m => m.alert === filterStatus)
     setFiltered(result)
   }, [search, filterStatus, medicines])
 
@@ -58,7 +58,7 @@ export default function PharmacistStock() {
     { key: 'name',        label: 'Medicine Name' },
     { key: 'stock',       label: 'Stock' },
     { key: 'expiry_date', label: 'Expiry Date' },
-    { key: 'status',      label: 'Status', render: (row) => statusBadge(row.status) },
+    { key: 'alert',      label: 'Status', render: (row) => statusBadge(row.alert) },
   ]
 
   const statuses = ['OUT OF STOCK', 'EXPIRED', 'CRITICAL', 'EXPIRING SOON', 'OK']

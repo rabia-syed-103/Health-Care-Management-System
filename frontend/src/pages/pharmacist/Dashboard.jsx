@@ -21,17 +21,17 @@ export default function PharmacistDashboard() {
           getPendingPrescriptions(),
         ])
         const medicines = stock.data.medicines || []
-        const outOfStock = medicines.filter(m => m.status === 'OUT OF STOCK').length
-        const expired    = medicines.filter(m => m.status === 'EXPIRED').length
-        const critical   = medicines.filter(m => m.status === 'CRITICAL').length
-        const expiring   = medicines.filter(m => m.status === 'EXPIRING SOON').length
-        const ok         = medicines.filter(m => m.status === 'OK').length
+        const outOfStock = medicines.filter(m => m.alert === 'OUT OF STOCK').length
+        const expired    = medicines.filter(m => m.alert === 'EXPIRED').length
+        const critical   = medicines.filter(m => m.alert === 'CRITICAL').length
+        const expiring   = medicines.filter(m => m.alert === 'EXPIRING SOON').length
+        const ok         = medicines.filter(m => m.alert === 'OK').length
 
         setStats({
           total:      medicines.length,
           outOfStock: outOfStock + expired,
           expiring:   critical + expiring,
-          pending:    pending.data.prescriptions?.length || 0,
+          pending:    pending.data.pending_prescriptions?.length || 0,
         })
 
         setPieData([
@@ -55,7 +55,8 @@ export default function PharmacistDashboard() {
   return (
     <div>
       <PageHeader
-        title={`Welcome, ${user?.name || 'Pharmacist'}`}
+        title={`Welcome, ${user?.email || 'Pharmacist'}`}
+        badge={user?.id ? `ID: ${user.id}` : null}
         subtitle="Medicine inventory and prescription overview"
       />
 

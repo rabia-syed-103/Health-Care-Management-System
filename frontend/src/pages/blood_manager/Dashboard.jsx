@@ -51,7 +51,8 @@ export default function BloodManagerDashboard() {
   return (
     <div>
       <PageHeader
-        title={`Welcome, ${user?.name || 'Blood Manager'}`}
+        title={`Welcome, ${user?.email  || 'Blood Manager'}`}
+        badge={user?.id ? `ID: ${user.id}` : null}
         subtitle="Blood bank overview and inventory status"
       />
 
