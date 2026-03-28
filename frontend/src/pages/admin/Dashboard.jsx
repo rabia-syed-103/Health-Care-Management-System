@@ -5,9 +5,11 @@ import { getAllDonors } from '../../api/donors'
 import PageHeader from '../../components/PageHeader'
 import StatCard from '../../components/StatCard'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import { useAuth } from '../../context/AuthContext'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 
 export default function AdminDashboard() {
+    const { user } = useAuth()
   const [stats, setStats] = useState({
     doctors: 0, receptionists: 0, pharmacists: 0,
     blood_managers: 0, patients: 0, donors: 0
@@ -54,7 +56,7 @@ export default function AdminDashboard() {
     { name: 'Donors',   value: stats.donors },
   ]
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+const COLORS = ['#8b5cf6', '#ec4899']
 
   if (loading) return <LoadingSpinner />
 
@@ -81,7 +83,7 @@ export default function AdminDashboard() {
               <XAxis dataKey="name" tick={{ fontSize: 12 }} />
               <YAxis allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey="value" fill="#3b82f6" radius={[4,4,0,0]} />
+              <Bar dataKey="value" fill="#ec4899" radius={[4,4,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

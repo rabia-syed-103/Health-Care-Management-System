@@ -190,7 +190,7 @@ func FulfillBloodRequest(c *gin.Context) {
 	err = tx.QueryRow(ctx,
 		`SELECT b.id, b.b_gr, b.unit, b.expiry_date
 		 FROM   blood b
-		 WHERE  b.status      IN ('available', 'reserved')
+		 WHERE  b.status      IN ('available')
 		   AND  b.expiry_date  > CURRENT_DATE
 		   AND  b.unit        >= $1
 		   AND  b.b_gr = ANY(
@@ -238,6 +238,7 @@ func FulfillBloodRequest(c *gin.Context) {
 		})
 		return
 	}
+
 	if err := tx.Commit(ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return

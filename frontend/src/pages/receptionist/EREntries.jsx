@@ -58,9 +58,11 @@ export default function ReceptionistEREntries() {
   }
 
   const columns = [
-    { key: 'er_patient_name', label: 'ER Patient' },
+    { key: 'patient_name', label: 'ER Patient' },
     { key: 'doctor_name',     label: 'Doctor' },
-    { key: 'er_id',           label: 'Shift ID' },
+    { key: 'id',           label: 'Shift ID' },
+    {key: 'shift_date', label: 'Shift Date'},
+    {key:'shift_time', label: 'Shift Time'},
     { key: 'status', label: 'Status', render: (row) => statusBadge(row.status) },
   ]
 
@@ -68,11 +70,10 @@ export default function ReceptionistEREntries() {
 
   return (
     <div>
-      <PageHeader
-        title="ER Entries"
-        subtitle={`${data.length} ER patient entries`}
-        action={<button onClick={() => { setForm(empty); setModal(true) }} className="btn-primary">+ Add ER Entry</button>}
-      />
+    <PageHeader
+      title="ER Entries"
+      subtitle={`${data.length} ER patient entries`}
+    />
       <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />
       <Table columns={columns} data={data} emptyMessage="No ER entries found" />
 

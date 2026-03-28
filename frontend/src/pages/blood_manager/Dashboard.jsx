@@ -24,11 +24,11 @@ export default function BloodManagerDashboard() {
           getBloodInventory(),
         ])
         setStats({
-          donors:    donors.data.donors?.length             || 0,
-          donations: donations.data.donations?.length       || 0,
-          pending:   pending.data.pending_requests?.length  || 0,
-          expired:   expired.data.expired?.length           || 0,
-        })
+        donors:    donors.data.donors?.length             || 0,
+        donations: donations.data.donations?.length       || 0,
+        pending:   pending.data.pending_requests?.length  || 0,
+        expired:   expired.data.expired_blood?.length     || 0,
+      })
         setInventory(inv.data.inventory || [])
       } catch { }
       finally { setLoading(false) }

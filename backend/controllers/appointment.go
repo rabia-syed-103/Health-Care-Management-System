@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hospital-management/db"
+	"hospital-management/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -43,10 +44,10 @@ func BookAppointment(c *gin.Context) {
 		return
 	}
 
-	var doctorName string
+	var doctorName, doctorEmail string
 	if err := db.Pool.QueryRow(ctx,
-		`SELECT name FROM doctor WHERE id = $1`, req.DoctorID,
-	).Scan(&doctorName); err != nil {
+		`SELECT name, email FROM doctor WHERE id = $1`, req.DoctorID,
+	).Scan(&doctorName, &doctorEmail); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Doctor not found"})
 		return
 	}
@@ -113,6 +114,32 @@ func BookAppointment(c *gin.Context) {
 		return
 	}
 	tx = nil
+	// Send email in background
+	go func() {
+		err := utils.SendEmail(
+			req.PatientEmail,
+			"Appointment Confirmed",
+			fmt.Sprintf(
+				"Hello %s,\n\nYour appointment has been booked successfully.\n\nDoctor: %s\nDate: %s\nTime: %s\n\nThank you!",
+				patientName, doctorName, req.Date, req.Time,
+			),
+		)
+		if err != nil {
+			fmt.Println("Patient email error:", err)
+		}
+
+		err = utils.SendEmail(
+			doctorEmail,
+			"New Appointment Scheduled",
+			fmt.Sprintf(
+				"Hello Dr. %s,\n\nYou have a new appointment scheduled with patient %s.\n\nDate: %s\nTime: %s\n\nThank you!",
+				doctorName, patientName, req.Date, req.Time,
+			),
+		)
+		if err != nil {
+			fmt.Println("Doctor email error:", err)
+		}
+	}()
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message":        "Appointment booked successfully",
@@ -145,10 +172,10 @@ func BookOTAppointment(c *gin.Context) {
 		return
 	}
 
-	var doctorName string
+	var doctorName, doctorEmail string
 	if err := db.Pool.QueryRow(ctx,
-		`SELECT name FROM doctor WHERE id = $1`, req.DoctorID,
-	).Scan(&doctorName); err != nil {
+		`SELECT name, email FROM doctor WHERE id = $1`, req.DoctorID,
+	).Scan(&doctorName, &doctorEmail); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Doctor not found"})
 		return
 	}
@@ -252,6 +279,31 @@ func BookOTAppointment(c *gin.Context) {
 		return
 	}
 	tx = nil
+	// 📧 Send email in background
+	go func() {
+		err := utils.SendEmail(
+			req.PatientEmail,
+			"OT Appointment Confirmed",
+			fmt.Sprintf(
+				"Hello %s,\n\nYour OT appointment has been booked.\n\nDoctor: %s\nDate: %s\nTime: %s\nOT ID: %d\n\nThank you!",
+				patientName, doctorName, req.Date, req.Time, otID,
+			),
+		)
+		if err != nil {
+			fmt.Println("Email error:", err)
+		}
+		err = utils.SendEmail(
+			doctorEmail,
+			"New Appointment Scheduled",
+			fmt.Sprintf(
+				"Hello Dr. %s,\n\nYou have a new appointment scheduled with patient %s.\n\nDate: %s\nTime: %s\nOT ID: %d\n\nThank you!",
+				doctorName, patientName, req.Date, req.Time, otID,
+			),
+		)
+		if err != nil {
+			fmt.Println("Doctor email error:", err)
+		}
+	}()
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message":        "OT appointment booked successfully",

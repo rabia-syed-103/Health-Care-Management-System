@@ -37,7 +37,7 @@ export default function BloodManagerRequests() {
     setSaving(true)
     try {
       const res = await fulfillBloodRequest({
-        request_id: selected.request_id,
+        request_id: selected.id,           // ✅ was selected.request_id
         manager_id: parseInt(managerId),
       })
       setResult(res.data)
@@ -49,12 +49,12 @@ export default function BloodManagerRequests() {
   }
 
   const columns = [
-    { key: 'request_id',    label: 'Request ID' },
-    { key: 'patient_name',  label: 'Patient' },
-    { key: 'blood_group',   label: 'Blood Group', render: (row) => <span className="badge-danger">{row.blood_group?.trim()}</span> },
-    { key: 'quantity_needed', label: 'Units Needed' },
-    { key: 'doctor_name',   label: 'Requested By' },
-    { key: 'created_at',    label: 'Date' },
+    { key: 'id',                   label: 'Request ID' },
+    { key: 'patient_name',         label: 'Patient' },
+    { key: 'patient_blood_group',  label: 'Blood Group', render: (row) => <span className="badge-danger">{row.patient_blood_group?.trim()}</span> },  // ✅ was row.blood_group
+    { key: 'quantity_needed',      label: 'Units Needed' },
+    { key: 'doctor_name',          label: 'Requested By' },
+    { key: 'request_date',         label: 'Date' },
     { key: 'actions', label: 'Actions', render: (row) => (
       <button onClick={() => openFulfill(row)} className="btn-primary text-xs py-1 px-3">
         Fulfill
@@ -79,7 +79,7 @@ export default function BloodManagerRequests() {
             <div className="space-y-4">
               <div className="p-3 bg-gray-50 rounded-lg text-sm space-y-1">
                 <p><span className="text-gray-500">Patient:</span> <strong>{selected?.patient_name}</strong></p>
-                <p><span className="text-gray-500">Blood Group:</span> <strong>{selected?.blood_group?.trim()}</strong></p>
+                <p><span className="text-gray-500">Blood Group:</span> <strong>{selected?.patient_blood_group?.trim()}</strong></p>  {/* ✅ was selected?.blood_group */}
                 <p><span className="text-gray-500">Units Needed:</span> <strong>{selected?.quantity_needed}</strong></p>
                 <p><span className="text-gray-500">Requested By:</span> <strong>{selected?.doctor_name}</strong></p>
               </div>

@@ -55,6 +55,10 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		if userRole == "admin" {
+			c.Next()
+			return
+		}
 
 		for _, role := range roles {
 			if userRole == role {

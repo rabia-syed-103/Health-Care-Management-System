@@ -15,32 +15,32 @@ export default function BloodManagerInventory() {
   const [filterUrgency, setFilterUrgency] = useState('')
   const [alert,     setAlert]     = useState({ type: '', message: '' })
 
-  const fetchData = async () => {
-    try {
-      const res = await getBloodInventory()
-      const data = res.data.inventory || []
-      setInventory(data)
-      setFiltered(data)
-    } catch { setInventory([]); setFiltered([]) }
-    finally { setLoading(false) }
-  }
 
+  const fetchData = async () => {
+  try {
+    const res  = await getBloodInventory()
+    const data = (res.data.inventory || []).filter(i => i.status === 'available') // ✅ add this
+    setInventory(data)
+    setFiltered(data)
+  } catch { setInventory([]); setFiltered([]) }
+  finally { setLoading(false) }
+}
   useEffect(() => { fetchData() }, [])
 
   useEffect(() => {
     let result = inventory
     if (filterBG)      result = result.filter(i => i.blood_group?.trim() === filterBG)
-    if (filterUrgency) result = result.filter(i => i.urgency === filterUrgency)
+    if (filterUrgency) result = result.filter(i => i.expiry_alert === filterUrgency)  // ✅ was i.urgency
     setFiltered(result)
   }, [filterBG, filterUrgency, inventory])
 
-  const urgencyBadge = (urgency) => {
+  const urgencyBadge = (alert) => {
     const map = {
       'CRITICAL':      'badge-danger',
       'EXPIRING SOON': 'badge-warning',
       'OK':            'badge-success',
     }
-    return <span className={map[urgency] || 'badge-info'}>{urgency}</span>
+    return <span className={map[alert] || 'badge-info'}>{alert}</span>
   }
 
   const statusBadge = (status) => {
@@ -49,12 +49,11 @@ export default function BloodManagerInventory() {
   }
 
   const columns = [
-    { key: 'blood_id',    label: 'Blood ID' },
-    { key: 'blood_group', label: 'Blood Group', render: (row) => <span className="badge-danger">{row.blood_group?.trim()}</span> },
-    { key: 'units',       label: 'Units' },
-    { key: 'status',      label: 'Status',  render: (row) => statusBadge(row.status) },
-    { key: 'expiry_date', label: 'Expiry Date' },
-    { key: 'urgency',     label: 'Urgency', render: (row) => urgencyBadge(row.urgency) },
+    { key: 'id',           label: 'Blood ID' },
+    { key: 'blood_group',  label: 'Blood Group',  render: (row) => <span className="badge-danger">{row.blood_group?.trim()}</span> },
+    { key: 'units',        label: 'Units' },
+    { key: 'expiry_date',  label: 'Expiry Date' },
+    { key: 'expiry_alert', label: 'Urgency',      render: (row) => urgencyBadge(row.expiry_alert) },  // ✅ was row.urgency
   ]
 
   if (loading) return <LoadingSpinner />

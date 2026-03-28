@@ -473,41 +473,37 @@ DECLARE
     v_status        VARCHAR(20);
     v_expiry        DATE;
     v_units         INT;
-    v_bgr           CHAR(3);
-    v_patient_bgr   CHAR(3);
+    v_bgr           VARCHAR(5);
+    v_patient_bgr   VARCHAR(5);
     v_patient_name  VARCHAR(100);
     v_compatible    BOOLEAN := FALSE;
 BEGIN
-    SELECT Status, Expiry_Date, Unit, B_Gr
+    SELECT TRIM(Status), Expiry_Date, Unit, TRIM(B_Gr)
     INTO   v_status, v_expiry, v_units, v_bgr
     FROM   Blood
     WHERE  ID = NEW.Blood_ID;
 
     IF v_expiry <= CURRENT_DATE OR v_status = 'expired' THEN
-        RAISE EXCEPTION
-            '[Blood Inventory] Blood ID % (%) expired on %. Cannot use for fulfillment.',
+        RAISE EXCEPTION '[Blood Inventory] Blood ID % (%) expired on %. Cannot use for fulfillment.',
             NEW.Blood_ID, v_bgr, v_expiry;
     END IF;
 
-    IF v_status NOT IN ('available', 'reserved') THEN
-        RAISE EXCEPTION
-            '[Blood Inventory] Blood ID % has status "%" and cannot be used.',
+    IF v_status NOT IN ('available') THEN
+        RAISE EXCEPTION '[Blood Inventory] Blood ID % has status "%" and cannot be used.',
             NEW.Blood_ID, v_status;
     END IF;
 
     IF NEW.Quantity_Provided < 1 OR NEW.Quantity_Provided > 20 THEN
-        RAISE EXCEPTION
-            '[Blood Inventory] Fulfillment quantity must be between 1 and 20. Requested: %.',
+        RAISE EXCEPTION '[Blood Inventory] Fulfillment quantity must be between 1 and 20. Requested: %.',
             NEW.Quantity_Provided;
     END IF;
 
     IF NEW.Quantity_Provided > v_units THEN
-        RAISE EXCEPTION
-            '[Blood Inventory] Insufficient units for Blood ID %. Available: %, Requested: %.',
+        RAISE EXCEPTION '[Blood Inventory] Insufficient units for Blood ID %. Available: %, Requested: %.',
             NEW.Blood_ID, v_units, NEW.Quantity_Provided;
     END IF;
 
-    SELECT p.B_Gr, p.Name
+    SELECT TRIM(p.B_Gr), p.Name
     INTO   v_patient_bgr, v_patient_name
     FROM   Blood_Request br
     JOIN   Patient       p ON p.ID = br.Patient_ID
@@ -526,24 +522,8 @@ BEGIN
     END;
 
     IF NOT v_compatible THEN
-        RAISE EXCEPTION
-            '[Blood Inventory] Incompatible blood type for Request ID %. '
-            'Patient "%" (%) cannot receive % blood. '
-            'Compatible donor types for %: %.',
-            NEW.Request_ID,
-            v_patient_name, v_patient_bgr,
-            v_bgr,
-            v_patient_bgr,
-            CASE v_patient_bgr
-                WHEN 'O-'  THEN 'O-'
-                WHEN 'O+'  THEN 'O-, O+'
-                WHEN 'A-'  THEN 'O-, A-'
-                WHEN 'A+'  THEN 'O-, O+, A-, A+'
-                WHEN 'B-'  THEN 'O-, B-'
-                WHEN 'B+'  THEN 'O-, O+, B-, B+'
-                WHEN 'AB-' THEN 'O-, A-, B-, AB-'
-                WHEN 'AB+' THEN 'O-, O+, A-, A+, B-, B+, AB-, AB+'
-            END;
+        RAISE EXCEPTION '[Blood Inventory] Incompatible blood type for Request ID %. Patient "%" (%) cannot receive % blood.',
+            NEW.Request_ID, v_patient_name, v_patient_bgr, v_bgr;
     END IF;
 
     RETURN NEW;
@@ -569,8 +549,11 @@ BEGIN
     RETURNING Unit INTO v_units_after;
 
     UPDATE Blood
-    SET    Status = CASE WHEN v_units_after = 0 THEN 'used' ELSE 'reserved' END
-    WHERE  ID = NEW.Blood_ID;
+    SET Status = CASE 
+                WHEN v_units_after = 0 THEN 'used'
+                ELSE Status  
+                END
+    WHERE ID = NEW.Blood_ID;
 
     SELECT br.Quantity_Needed,
            COALESCE(SUM(brf.Quantity_Provided), 0)

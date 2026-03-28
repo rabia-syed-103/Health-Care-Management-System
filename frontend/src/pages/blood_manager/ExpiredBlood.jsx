@@ -14,15 +14,22 @@ export default function BloodManagerExpired() {
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
-  const fetchData = async () => {
-    try {
-      const res = await getExpiredBlood()
-      const data = res.data.expired || []
-      setExpired(data)
-      setFiltered(data)
-    } catch { setExpired([]); setFiltered([]) }
-    finally { setLoading(false) }
+const fetchData = async () => {
+  try {
+    const res = await getExpiredBlood()
+    const data = res.data.expired_blood?.map(b => ({
+      ...b,
+      blood_group: b.blood_group?.trim()
+    })) || []
+    setExpired(data)
+    setFiltered(data)
+  } catch {
+    setExpired([])
+    setFiltered([])
+  } finally {
+    setLoading(false)
   }
+}
 
   useEffect(() => { fetchData() }, [])
 
@@ -32,15 +39,15 @@ export default function BloodManagerExpired() {
     setFiltered(result)
   }, [filterBG, expired])
 
-  const columns = [
-    { key: 'blood_id',    label: 'Blood ID' },
-    { key: 'blood_group', label: 'Blood Group', render: (row) => <span className="badge-danger">{row.blood_group?.trim()}</span> },
-    { key: 'units',       label: 'Units' },
-    { key: 'expiry_date', label: 'Expiry Date' },
-    { key: 'days_expired',label: 'Days Expired', render: (row) => (
-      <span className="text-red-600 font-medium">{row.days_expired} days</span>
-    )},
-  ]
+const columns = [
+  { key: 'id',         label: 'Blood ID' },
+  { key: 'blood_group', label: 'Blood Group', render: (row) => <span className="badge-danger">{row.blood_group?.trim()}</span> },
+  { key: 'units',       label: 'Units' },
+  { key: 'expiry_date', label: 'Expiry Date' },
+  { key: 'days_expired',label: 'Days Expired', render: (row) => (
+    <span className="text-red-600 font-medium">{row.days_expired} days</span>
+  )},
+]
 
   if (loading) return <LoadingSpinner />
 

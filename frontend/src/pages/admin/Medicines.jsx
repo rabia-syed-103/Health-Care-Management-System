@@ -62,7 +62,7 @@ export default function AdminMedicines() {
     { key: 'name',        label: 'Medicine Name' },
     { key: 'stock',       label: 'Stock' },
     { key: 'expiry_date', label: 'Expiry Date' },
-    { key: 'status',      label: 'Status', render: (row) => statusBadge(row.status) },
+    { key: 'alert',      label: 'Status', render: (row) => statusBadge(row.alert) },
   ]
 
   if (loading) return <LoadingSpinner />

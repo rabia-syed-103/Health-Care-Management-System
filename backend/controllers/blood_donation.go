@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hospital-management/db"
+	"hospital-management/utils"
 	"net/http"
 	"time"
 
@@ -36,13 +37,12 @@ func RecordBloodDonation(c *gin.Context) {
 	}
 
 	var donorID int
-	var donorName string
-	var bloodGroup string
+	var donorName, donorEmail, bloodGroup string
 	var lastDonate time.Time
 
 	if err := db.Pool.QueryRow(ctx,
-		`SELECT id, name, b_gr, last_donate FROM donor WHERE email = $1`, req.DonorEmail,
-	).Scan(&donorID, &donorName, &bloodGroup, &lastDonate); err != nil {
+		`SELECT id, name, email, b_gr, last_donate FROM donor WHERE email = $1`, req.DonorEmail,
+	).Scan(&donorID, &donorName, &donorEmail, &bloodGroup, &lastDonate); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Donor not found"})
 		return
 	}
@@ -137,6 +137,17 @@ func RecordBloodDonation(c *gin.Context) {
 		return
 	}
 	tx = nil
+	go func() {
+		err := utils.SendEmail(
+			donorEmail,
+			"Thank You for Donating Blood",
+			fmt.Sprintf("Hello %s,\nThank you for donating blood on %s. Your donation helps save lives!",
+				donorName, today),
+		)
+		if err != nil {
+			fmt.Println("Donor email error:", err)
+		}
+	}()
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message":       "Blood donation recorded successfully",
