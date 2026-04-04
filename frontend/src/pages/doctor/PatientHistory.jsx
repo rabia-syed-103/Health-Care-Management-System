@@ -3,6 +3,7 @@ import { getPatientHistory } from '../../api/doctor'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../components/Alert'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import { exportPDF } from '../../utils/pdfExport'
 
 export default function DoctorPatientHistory() {
   const [email,   setEmail]   = useState('')
@@ -26,7 +27,28 @@ export default function DoctorPatientHistory() {
       showAlert('error', err.response?.data?.error || 'Patient not found')
     } finally { setLoading(false) }
   }
+  const downloadPDF = () => {
+  const rows = []
 
+  // Appointments section
+  data.appointments?.forEach(a => {
+    rows.push([a.doctor_name, a.date, a.time, a.status, '—', '—', '—'])
+  })
+
+  // Prescriptions section
+  data.prescriptions?.forEach(p => {
+    p.medicines?.forEach(m => {
+      rows.push(['—', p.date, '—', '—', `Dr. ${p.doctor_name}`, m.medicine_name, m.quantity])
+    })
+  })
+
+  exportPDF(
+    `Patient History — ${data.patient?.name}`,
+    ['Doctor', 'Date', 'Time', 'Appt Status', 'Prescribing Dr', 'Medicine', 'Qty'],
+    rows,
+    `patient-history-${data.patient?.name?.replace(' ', '-')}`
+  )
+}
   return (
     <div>
       <PageHeader title="Patient History" subtitle="Search full history by patient email" />
@@ -51,6 +73,9 @@ export default function DoctorPatientHistory() {
 
         {data && (
           <div className="space-y-6">
+            <div className="flex justify-end">
+              <button onClick={downloadPDF} className="btn-secondary">⬇ Download PDF</button>
+            </div>
             {/* Patient Info */}
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-800 mb-3">Patient Info</h2>

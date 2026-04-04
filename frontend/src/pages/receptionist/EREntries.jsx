@@ -5,6 +5,7 @@ import Table from '../../components/Table'
 import Modal from '../../components/Modal'
 import Alert from '../../components/Alert'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import { exportPDF } from '../../utils/pdfExport'
 
 const empty = { er_patient_id: '', doctor_id: '', er_id: '', status: 'waiting' }
 const statuses = ['waiting', 'in_treatment', 'admitted', 'discharged', 'transferred']
@@ -56,7 +57,12 @@ export default function ReceptionistEREntries() {
     }
     return <span className={map[status] || 'badge-info'}>{status?.replace('_', ' ')}</span>
   }
-
+  const downloadPDF = () => exportPDF(
+    'ER Entries Report',
+    ['ER Patient', 'Doctor', 'Shift ID', 'Shift Date', 'Shift Time', 'Status'],
+    data.map(r => [r.patient_name, r.doctor_name, r.id, r.shift_date, r.shift_time, r.status?.replace('_', ' ')]),
+    'er-entries-report'
+  )
   const columns = [
     { key: 'patient_name', label: 'ER Patient' },
     { key: 'doctor_name',     label: 'Doctor' },
@@ -73,6 +79,7 @@ export default function ReceptionistEREntries() {
     <PageHeader
       title="ER Entries"
       subtitle={`${data.length} ER patient entries`}
+      action={<button onClick={downloadPDF} className="btn-secondary">⬇ Download PDF</button>}
     />
       <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />
       <Table columns={columns} data={data} emptyMessage="No ER entries found" />

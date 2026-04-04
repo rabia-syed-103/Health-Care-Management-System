@@ -4,7 +4,7 @@ import PageHeader from '../../components/PageHeader'
 import Table from '../../components/Table'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Alert from '../../components/Alert'
-
+import { exportPDF } from '../../utils/pdfExport'
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
 export default function BloodManagerInventory() {
@@ -47,7 +47,12 @@ export default function BloodManagerInventory() {
     const map = { available: 'badge-success', reserved: 'badge-warning' }
     return <span className={map[status] || 'badge-info'}>{status}</span>
   }
-
+  const downloadPDF = () => exportPDF(
+  'Blood Inventory Report',
+  ['Blood ID', 'Blood Group', 'Units', 'Expiry Date', 'Urgency'],
+  filtered.map(r => [r.id, r.blood_group?.trim(), r.units, r.expiry_date, r.expiry_alert]),
+  'blood-inventory-report'
+  )
   const columns = [
     { key: 'id',           label: 'Blood ID' },
     { key: 'blood_group',  label: 'Blood Group',  render: (row) => <span className="badge-danger">{row.blood_group?.trim()}</span> },
@@ -60,10 +65,11 @@ export default function BloodManagerInventory() {
 
   return (
     <div>
-      <PageHeader
-        title="Blood Inventory"
-        subtitle={`${filtered.length} of ${inventory.length} blood units`}
-      />
+    <PageHeader
+      title="Blood Inventory"
+      subtitle={`${filtered.length} of ${inventory.length} blood units`}
+      action={<button onClick={downloadPDF} className="btn-secondary">⬇ Download PDF</button>}
+    />
       <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />
 
       <div className="flex gap-3 mb-4 flex-wrap">

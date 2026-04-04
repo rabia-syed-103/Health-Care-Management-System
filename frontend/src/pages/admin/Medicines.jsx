@@ -5,6 +5,7 @@ import Table from '../../components/Table'
 import Modal from '../../components/Modal'
 import Alert from '../../components/Alert'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import { exportPDF } from '../../utils/pdfExport'
 
 const empty = { batch_no: '', name: '', stock: '', expiry_date: '' }
 
@@ -56,7 +57,12 @@ export default function AdminMedicines() {
     m.name?.toLowerCase().includes(search.toLowerCase()) ||
     m.batch_no?.toLowerCase().includes(search.toLowerCase())
   )
-
+  const downloadPDF = () => exportPDF(
+    'Medicine Stock Report',
+    ['Batch No', 'Medicine Name', 'Stock', 'Expiry Date', 'Status'],
+    filtered.map(r => [r.batch_no, r.name, r.stock, r.expiry_date, r.alert]),
+    'medicines-report'
+  )
   const columns = [
     { key: 'batch_no',    label: 'Batch No' },
     { key: 'name',        label: 'Medicine Name' },
@@ -69,11 +75,16 @@ export default function AdminMedicines() {
 
   return (
     <div>
-      <PageHeader
-        title="Medicine Stock"
-        subtitle="View and manage medicine inventory"
-        action={<button onClick={() => { setForm(empty); setModal(true) }} className="btn-primary">+ Add / Restock</button>}
-      />
+    <PageHeader
+      title="Medicine Stock"
+      subtitle="View and manage medicine inventory"
+      action={
+        <div className="flex gap-2">
+          <button onClick={downloadPDF} className="btn-secondary">⬇ Download PDF</button>
+          <button onClick={() => { setForm(empty); setModal(true) }} className="btn-primary">+ Add / Restock</button>
+        </div>
+      }
+    />
 
       <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />
 

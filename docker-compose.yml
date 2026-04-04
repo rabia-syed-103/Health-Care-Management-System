@@ -1,0 +1,72 @@
+version: "3.9"
+
+services:
+
+  # ──────────────────────────────────────────────────────────────
+  # 1. PostgreSQL Database
+  # ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine        # official postgres image
+    container_name: hms_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME}
+      POSTGRES_USER:     ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # your data survives restarts
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql  # auto-runs on first start
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql      # auto-runs on first start
+    ports:
+      - "5432:5432"        # lets you connect via pgAdmin or DBeaver on your PC
+    healthcheck:           # backend waits for this before starting
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ──────────────────────────────────────────────────────────────
+  # 2. Go Backend
+  # ──────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend             # folder containing backend Dockerfile
+      dockerfile: Dockerfile
+    container_name: hms_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy   # won't start until postgres is ready
+    environment:
+      # These override your .env file inside the container
+      DB_HOST:     db                # "db" = the postgres service name above
+      DB_PORT:     5432
+      DB_USER:     ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME:     ${DB_NAME}
+      JWT_SECRET:  ${JWT_SECRET}
+      EMAIL_USER:  ${EMAIL_USER}
+      EMAIL_PASS:  ${EMAIL_PASS}
+      PORT:        8080
+    ports:
+      - "8080:8080"
+
+  # ──────────────────────────────────────────────────────────────
+  # 3. React Frontend
+  # ──────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend            # folder containing frontend Dockerfile
+      dockerfile: Dockerfile
+    container_name: hms_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend                      # starts after backend is up
+    ports:
+      - "80:80"                      # visit http://localhost in your browser
+
+# ──────────────────────────────────────────────────────────────
+# Named volume — postgres data persists even if containers stop
+# ──────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:

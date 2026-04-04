@@ -5,6 +5,7 @@ import Table from '../../components/Table'
 import Modal from '../../components/Modal'
 import Alert from '../../components/Alert'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import { exportPDF } from '../../utils/pdfExport'
 
 const empty = { name: '', email: '', b_gr: '', p_no: '' }
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
@@ -73,7 +74,12 @@ export default function ReceptionistPatients() {
       showAlert('error', err.response?.data?.error || 'Delete failed')
     } finally { setSaving(false) }
   }
-
+   const downloadPDF = () => exportPDF(
+    'Patients Report',
+    ['Name', 'Email', 'Blood Group', 'Phone'],
+    filtered.map(r => [r.name, r.email, r.b_gr?.trim(), r.p_no]),
+    'patients-report'
+  )
   const columns = [
     { key: 'name',  label: 'Name' },
     { key: 'email', label: 'Email' },
@@ -91,11 +97,16 @@ export default function ReceptionistPatients() {
 
   return (
     <div>
-      <PageHeader
-        title="Patients"
-        subtitle={`${filtered.length} of ${patients.length} patients`}
-        action={<button onClick={openAdd} className="btn-primary">+ Add Patient</button>}
-      />
+    <PageHeader
+      title="Patients"
+      subtitle={`${filtered.length} of ${patients.length} patients`}
+      action={
+        <div className="flex gap-2">
+          <button onClick={downloadPDF} className="btn-secondary">⬇ Download PDF</button>
+          <button onClick={openAdd} className="btn-primary">+ Add Patient</button>
+        </div>
+      }
+    />
 
       <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />
 

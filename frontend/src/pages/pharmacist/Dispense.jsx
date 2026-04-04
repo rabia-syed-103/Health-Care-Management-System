@@ -3,6 +3,7 @@ import { dispenseMedicines } from '../../api/prescriptions'
 import { useAuth } from '../../context/AuthContext'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../components/Alert'
+import { exportPDF } from '../../utils/pdfExport'
 
 export default function PharmacistDispense() {
   const { user } = useAuth()
@@ -33,6 +34,17 @@ export default function PharmacistDispense() {
       showAlert('error', err.response?.data?.error || 'Dispensing failed — transaction rolled back')
     } finally { setLoading(false) }
   }
+  const downloadPDF = () => exportPDF(
+    'Dispensing Report',
+    ['Field', 'Value'],
+    [
+      ['Prescription ID',    `#${result.prescription_id}`],
+      ['Pharmacist',         result.pharmacist],
+      ['Medicines Dispensed', result.medicines_count],
+      ['Date',               new Date().toLocaleDateString()],
+    ],
+    `dispensing-${result.prescription_id}`
+  )
 
   return (
     <div>
@@ -73,6 +85,7 @@ export default function PharmacistDispense() {
             <p className="text-sm text-green-700">Prescription ID: <strong>#{result.prescription_id}</strong></p>
             <p className="text-sm text-green-700">Pharmacist: <strong>{result.pharmacist}</strong></p>
             <p className="text-sm text-green-700">Medicines Dispensed: <strong>{result.medicines_count}</strong></p>
+            <button onClick={downloadPDF} className="btn-secondary mt-3">⬇ Download Dispensing PDF</button>
           </div>
         )}
       </div>

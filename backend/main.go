@@ -3,7 +3,6 @@ package main
 import (
 	"hospital-management/db"
 	"hospital-management/routes"
-	"log"
 	"os"
 
 	"github.com/gin-contrib/cors"
@@ -13,9 +12,7 @@ import (
 
 func main() {
 
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	godotenv.Load()
 
 	db.Connect()
 	defer db.Pool.Close()

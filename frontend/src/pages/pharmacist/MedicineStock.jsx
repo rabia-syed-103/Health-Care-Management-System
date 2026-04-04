@@ -4,6 +4,7 @@ import PageHeader from '../../components/PageHeader'
 import Table from '../../components/Table'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Alert from '../../components/Alert'
+import { exportPDF } from '../../utils/pdfExport'
 
 export default function PharmacistStock() {
   const [medicines, setMedicines] = useState([])
@@ -52,7 +53,12 @@ export default function PharmacistStock() {
     }
     return <span className={map[status] || 'badge-info'}>{status}</span>
   }
-
+  const downloadPDF = () => exportPDF(
+    'Medicine Stock Report',
+    ['Batch No', 'Medicine Name', 'Stock', 'Expiry Date', 'Status'],
+    filtered.map(r => [r.batch_no, r.name, r.stock, r.expiry_date, r.alert]),
+    'medicine-stock-report'
+  )
   const columns = [
     { key: 'batch_no',    label: 'Batch No' },
     { key: 'name',        label: 'Medicine Name' },
@@ -67,10 +73,11 @@ export default function PharmacistStock() {
 
   return (
     <div>
-      <PageHeader
-        title="Medicine Stock"
-        subtitle={`${filtered.length} of ${medicines.length} medicines`}
-      />
+    <PageHeader
+      title="Medicine Stock"
+      subtitle={`${filtered.length} of ${medicines.length} medicines`}
+      action={<button onClick={downloadPDF} className="btn-secondary">⬇ Download PDF</button>}
+    />
       <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />
 
       <div className="flex gap-3 mb-4 flex-wrap">

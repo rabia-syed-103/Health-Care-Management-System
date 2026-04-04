@@ -4,6 +4,7 @@ import PageHeader from '../../components/PageHeader'
 import Table from '../../components/Table'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Alert from '../../components/Alert'
+import { exportPDF } from '../../utils/pdfExport'
 
 export default function BloodManagerExpired() {
   const [expired,  setExpired]  = useState([])
@@ -38,25 +39,31 @@ const fetchData = async () => {
     if (filterBG) result = result.filter(e => e.blood_group?.trim() === filterBG)
     setFiltered(result)
   }, [filterBG, expired])
-
-const columns = [
-  { key: 'id',         label: 'Blood ID' },
-  { key: 'blood_group', label: 'Blood Group', render: (row) => <span className="badge-danger">{row.blood_group?.trim()}</span> },
-  { key: 'units',       label: 'Units' },
-  { key: 'expiry_date', label: 'Expiry Date' },
-  { key: 'days_expired',label: 'Days Expired', render: (row) => (
-    <span className="text-red-600 font-medium">{row.days_expired} days</span>
-  )},
-]
+  const downloadPDF = () => exportPDF(
+    'Expired Blood Report',
+    ['Blood ID', 'Blood Group', 'Units', 'Expiry Date', 'Days Expired'],
+    filtered.map(r => [r.id, r.blood_group?.trim(), r.units, r.expiry_date, `${r.days_expired} days`]),
+    'expired-blood-report'
+  )
+  const columns = [
+    { key: 'id',         label: 'Blood ID' },
+    { key: 'blood_group', label: 'Blood Group', render: (row) => <span className="badge-danger">{row.blood_group?.trim()}</span> },
+    { key: 'units',       label: 'Units' },
+    { key: 'expiry_date', label: 'Expiry Date' },
+    { key: 'days_expired',label: 'Days Expired', render: (row) => (
+      <span className="text-red-600 font-medium">{row.days_expired} days</span>
+    )},
+  ]
 
   if (loading) return <LoadingSpinner />
 
   return (
     <div>
-      <PageHeader
-        title="Expired Blood"
-        subtitle={`${filtered.length} expired blood units`}
-      />
+    <PageHeader
+      title="Expired Blood"
+      subtitle={`${filtered.length} expired blood units`}
+      action={<button onClick={downloadPDF} className="btn-secondary">⬇ Download PDF</button>}
+    />
       <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />
 
       <div className="flex gap-3 mb-4">

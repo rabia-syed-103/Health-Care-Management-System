@@ -3,6 +3,7 @@ import { prescribeMedicines } from '../../api/prescriptions'
 import { useAuth } from '../../context/AuthContext'
 import PageHeader from '../../components/PageHeader'
 import Alert from '../../components/Alert'
+import { exportPDF } from '../../utils/pdfExport'
 
 export default function DoctorPrescribe() {
   const { user } = useAuth()
@@ -34,7 +35,18 @@ export default function DoctorPrescribe() {
     updated[i][field] = field === 'quantity' ? parseInt(value) || 1 : value
     setMedicines(updated)
   }
-
+  const downloadPDF = () => exportPDF(
+  'Prescription Details',
+  ['Field', 'Value'],
+    [
+      ['Prescription ID', `#${result.prescription_id}`],
+      ['Patient',         result.patient],
+      ['Doctor',          result.doctor],
+      ['Medicines Count', result.medicines_count],
+      ['Date',            new Date().toLocaleDateString()],
+    ],
+    `prescription-${result.prescription_id}`
+  )
   const handleSubmit = async () => {
     if (!form.patient_email) return showAlert('error', 'Patient email is required')
     if (!form.doctor_email)  return showAlert('error', 'Doctor email is required')
@@ -57,6 +69,7 @@ export default function DoctorPrescribe() {
     } finally { setLoading(false) }
   }
 
+  
   return (
     <div>
       <PageHeader title="Prescribe Medicines" subtitle="Create a new prescription for a patient" />
@@ -128,6 +141,7 @@ export default function DoctorPrescribe() {
             <p className="text-sm text-green-700">Patient: <strong>{result.patient}</strong></p>
             <p className="text-sm text-green-700">Doctor: <strong>{result.doctor}</strong></p>
             <p className="text-sm text-green-700">Medicines: <strong>{result.medicines_count}</strong></p>
+            <button onClick={downloadPDF} className="btn-secondary mt-3">⬇ Download Prescription PDF</button>
           </div>
         )}
       </div>

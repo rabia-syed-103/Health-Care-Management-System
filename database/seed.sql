@@ -334,14 +334,14 @@ SELECT SETVAL('dispensing_id_seq', 18);
 -- ER_SHIFT 
 
 INSERT INTO ER_Shift (ID, Receptionist_ID, Time, Date) VALUES
-(1, 1, '08:00:00', '2026-04-01'),
-(2, 2, '16:00:00', '2026-04-01'),
-(3, 3, '00:00:00', '2026-04-02'),
-(4, 1, '08:00:00', '2026-04-02'),
-(5, 4, '16:00:00', '2026-04-03'),
-(6, 5, '08:00:00', '2026-04-03'),
-(7, 6, '16:00:00', '2026-04-04'),
-(8, 2, '08:00:00', '2026-04-04');
+  (1, 1, '08:00:00', '2026-04-10'),
+  (2, 2, '16:00:00', '2026-04-10'),
+  (3, 3, '00:00:00', '2026-04-11'),
+  (4, 1, '08:00:00', '2026-04-11'),
+  (5, 4, '16:00:00', '2026-04-12'),
+  (6, 5, '08:00:00', '2026-04-12'),
+  (7, 6, '16:00:00', '2026-04-13'),
+  (8, 2, '08:00:00', '2026-04-13');
 
 SELECT SETVAL('er_shift_id_seq', 8);
 
@@ -404,14 +404,20 @@ SELECT SETVAL('blood_request_id_seq', 15);
 -- BLOOD_REQUEST_FULFILLMENT 
 
 
+-- Temporarily disable the trigger
+ALTER TABLE Blood_Request_Fulfillment DISABLE TRIGGER ALL;
+
 INSERT INTO Blood_Request_Fulfillment (ID, Request_ID, Blood_ID, Manager_ID, Quantity_Provided, Fulfillment_Date) VALUES
-(1, 1,  1, 1, 3, '2026-01-07'),
-(2, 3,  3, 2, 3, '2026-01-09'),
-(3, 3,  7, 2, 1, '2026-01-09'),
-(4, 6,  8, 3, 3, '2026-01-11'),
-(5, 8,  9, 1, 2, '2026-01-13'),
-(6, 11, 7, 4, 1, '2026-01-16'),
-(7, 13, 5, 2, 2, '2026-01-18');
+  (1, 1,  1, 1, 3, '2026-01-07'),
+  (2, 3,  3, 2, 3, '2026-01-09'),
+  (3, 3,  7, 2, 1, '2026-01-09'),
+  (4, 6,  8, 3, 3, '2026-01-11'),
+  (5, 8,  9, 1, 2, '2026-01-13'),
+  (6, 11, 7, 4, 1, '2026-01-16'),
+  (7, 13, 5, 2, 2, '2026-01-18');
+
+-- Re-enable the trigger
+ALTER TABLE Blood_Request_Fulfillment ENABLE TRIGGER ALL;
 
 SELECT SETVAL('blood_request_fulfillment_id_seq', 7);
 

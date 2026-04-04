@@ -7,6 +7,7 @@ import StatCard from '../../components/StatCard'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import { useAuth } from '../../context/AuthContext'
 import { cancelAppointment } from '../../api/appointments'
+import { exportPDF } from '../../utils/pdfExport'
 
 export default function DoctorDashboard() {
   const { user } = useAuth()
@@ -42,7 +43,16 @@ const withOT    = appointments.filter(a => a.ot_id && a.ot_id !== 'None' && a.st
     setAlert({ type: 'error', message: err.response?.data?.error || 'Failed to cancel appointment' })
   } finally { setCancelling(null) }
 }
-
+const downloadPDF = () => exportPDF(
+  'My Appointments Report',
+  ['Patient', 'Blood Group', 'Phone', 'Email', 'Date', 'Time', 'Status', 'OT'],
+  appointments.map(r => [
+    r.patient_name, r.patient_blood_group, r.patient_phone,
+    r.patient_email, r.date, r.time, r.status,
+    r.ot_id && r.ot_id !== 'None' ? `OT #${r.ot_id}` : '—'
+  ]),
+  'my-appointments-report'
+)
 const columns = [
   { key: 'patient_name', label: 'Patient' },
   { key: 'patient_blood_group',  label: 'Blood Group' },
@@ -82,11 +92,12 @@ disabled={cancelling === row.id}
 
   return (
     <div>
-      <PageHeader
-      title={`Welcome, ${user?.email || 'Doctor'}`}
-      subtitle="Your appointments and schedule"
-      badge={user?.id ? `ID: ${user.id}` : null}
-    />
+  <PageHeader
+    title={`Welcome, ${user?.email || 'Doctor'}`}
+    subtitle="Your appointments and schedule"
+    badge={user?.id ? `ID: ${user.id}` : null}
+    action={<button onClick={downloadPDF} className="btn-secondary">⬇ Download PDF</button>}
+  />
     <Alert type={alert.type} message={alert.message} onClose={() => setAlert({ type: '', message: '' })} />
 
       <div className="grid grid-cols-3 gap-4 mb-8">

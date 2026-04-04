@@ -1,0 +1,7 @@
+# These are huge and get regenerated — never copy them into Docker
+node_modules/
+dist/
+.git
+.gitignore
+*.md
+*.log
