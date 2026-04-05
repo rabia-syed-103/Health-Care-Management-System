@@ -43,7 +43,11 @@ export default function BloodManagerDonors() {
 
   const showAlert  = (type, message) => { setAlert({ type, message }); setTimeout(() => setAlert({ type: '', message: '' }), 4000) }
   const openAdd    = () => { setForm(empty); setModal('add') }
-  const openEdit   = (row) => { setForm({ name: row.name, email: row.email, b_gr: row.b_gr?.trim(), p_no: row.p_no }); setSelected(row); setModal('edit') }
+  const openEdit = (row) => {
+  setForm({ name: row.name, email: row.email, b_gr: row.b_gr?.trim(), p_no: row.p_no, last_donate: row.last_donate });
+  setSelected(row);
+  setModal('edit');
+};
   const openDelete = (row) => { setSelected(row); setModal('delete') }
   const closeModal = () => { setModal(null); setSelected(null) }
 
