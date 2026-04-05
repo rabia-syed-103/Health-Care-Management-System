@@ -19,3 +19,8 @@ export const getAllBloodManagers = ()            => api.get('/admin/blood-manage
 export const addBloodManager     = (data)        => api.post('/admin/blood-managers', data)
 export const editBloodManager    = (email, data) => api.put(`/admin/blood-managers/${email}`, data)
 export const deleteBloodManager  = (email)       => api.delete(`/admin/blood-managers/${email}`)
+
+export const getDoctorDetail       = (email) => api.get(`/admin/doctors/${email}/detail`)
+export const getReceptionistDetail = (email) => api.get(`/admin/receptionists/${email}/detail`)
+export const getPharmacistDetail   = (email) => api.get(`/admin/pharmacists/${email}/detail`)
+export const getBloodManagerDetail = (email) => api.get(`/admin/blood-managers/${email}/detail`)

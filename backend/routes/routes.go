@@ -125,6 +125,11 @@ func SetupRoutes(r *gin.Engine) {
 		admin := protected.Group("/admin")
 		admin.Use(middleware.RequireRole("admin"))
 		{
+			// Staff Detail Views
+			admin.GET("/doctors/:email/detail", controllers.AdminGetDoctorDetail)
+			admin.GET("/receptionists/:email/detail", controllers.AdminGetReceptionistDetail)
+			admin.GET("/pharmacists/:email/detail", controllers.AdminGetPharmacistDetail)
+			admin.GET("/blood-managers/:email/detail", controllers.AdminGetBloodManagerDetail)
 			// Doctors
 			admin.GET("/doctors", controllers.AdminGetAllDoctors)
 			admin.POST("/doctors", controllers.AdminAddDoctor)
