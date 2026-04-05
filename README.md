@@ -79,10 +79,12 @@ Browser (React + Vite)
 
 ## Features
 
-- **Docker Containerization** — Full stack (frontend + backend + database) orchestrated via Docker Compose; deployable on any machine with a single command
-- **PDF Export** — Multiple data tables (donors, patients, prescriptions, inventory) and reports can be downloaded as a formatted PDF report using jsPDF such as Patient History,Prescrption etc.
-- **Real-Time Email Notifications** — Automated emails sent via Gmail SMTP on key events using gomail.v2 on a specifiic event. 
-- **Analytical Dashboard** — Visual charts and stats giving role-based overviews of hospital activity using Recharts
+- **Docker Containerization** - Full stack (frontend + backend + database) orchestrated via Docker Compose; deployable on any machine with a single command
+- **PDF Export** - Multiple data tables (donors, patients, prescriptions, inventory) and reports can be downloaded as a formatted PDF report using jsPDF such as Patient History,Prescrption etc.
+- **Real-Time Email Notifications** - Automated emails sent via Gmail SMTP on key events using gomail.v2 on a specifiic event. 
+- **Multiple Role-Based Analytical Dashboards** - Dedicated dashboards for Admin, Doctor, Pharmacist, and Inventory Manager roles, each surfacing contextually relevant metrics, charts, and activity summaries using Recharts
+- **Advanced Filtering & Search** - Dynamic multi-criteria filtering across multiple data tables(by urgency,status etc) with real-time results and persistent filter state across views
+- **Cloud Deployment** - If the aws Ec2 instance is running anyone can connect to it using link ```http://<latest ec2 public ip>```
 
 ## UI Examples
 
