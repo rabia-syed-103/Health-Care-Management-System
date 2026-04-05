@@ -750,3 +750,20 @@ Ctrl + C
 # Frontend
 Ctrl + C
 ```
+
+**Screen Shots**
+
+**Login**
+![](image.png)
+
+**Admin Dashboard**
+
+![alt text](image-1.png)
+
+**Receptionist Dashboard**
+
+![alt text](image-2.png)
+
+**Blood Manager Dashboard**
+
+![alt text](image-3.png)
